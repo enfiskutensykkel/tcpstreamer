@@ -2,25 +2,30 @@
 PROJECT=streamer
 
 # Temporary directory to store object files
-# Must be a relative directory of the project directory
 TMP_DIR=build
 
-# Location of source code files
-# Must be an existing subdirectory of project directory
-SRC_DIR=src
+# Core source code directory
+SRC_DIR=core
+
+# Custom streamers source code
+AUX_DIR=src
+
+# Global headers
+LIB_DIR=lib
 
 # Custom defines and constants
-DEFINES=DEF_SIZE=1460 DEF_PORT=50000 DEF_DUR=10 MAX_CONNS=10 \
-    	ETH_FRAME_LEN=14 RTT_INTERVAL=1 MAX_INFLIGHT=3 
+DEFINES=DEF_SIZE=1460 DEF_PORT=50000 DEF_DUR=10
 
 
 
 ### Generic make variables ###
 OUT := $(TMP_DIR:%/=%)
-DIR := $(SRC_DIR:%/=%)
-SRC := $(shell find $(DIR)/ -mindepth 1 -name "*.c")
-HDR := $(shell find $(DIR)/ -mindepth 1 -name "*.h")
-ALL := $(SRC) $(HDR) Makefile README.md
+DIR := $(SRC_DIR:%/=%) $(AUX_DIR:%/=%)
+LIB := $(LIB_DIR:%/=%)
+SRC := $(shell find $(firstword $(DIR))/ -name "*.c") 
+AUX := $(shell find $(lastword $(DIR))/ -maxdepth 1 -name "*.c")
+HDR := $(foreach d,$(DIR) $(LIB),$(shell find $(d) -name "*.h"))
+ALL := $(SRC) $(HDR) $(AUX) Makefile README.md autogen.sh
 DEF := $(DEFINES:-D%=%)
 
 ### Compiler and linker settings ###
@@ -35,15 +40,24 @@ LDLIBS := pcap pthread
 all: $(PROJECT)
 
 define target_template
-$(OUT)/$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(DIR)/%=%))))$(notdir $(1:%.c=%.o)): $(1)
+$(OUT)/$(if $(3),$(3)_)$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(2)/%=%))))$(notdir $(1:%.c=%.o)): $(1)
 	-@mkdir -p $$(@D)
-	$$(CC) $$(CFLAGS) $(addprefix -D,$(DEF:-D%=%)) -o $$@ -c $$?
-OBJ+=$(OUT)/$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(DIR)/%=%))))$(notdir $(1:%.c=%.o))
+	$$(CC) $(if $(4),$(addprefix -I,$(4))) $$(CFLAGS) $(addprefix -D,$(DEF:-D%=%)) -o $$@ -c $$?
+OBJ+=$(OUT)/$(if $(3),$(3)_)$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(2)/%=%))))$(notdir $(1:%.c=%.o))
+ifeq (1,$(5))
+DEP+=$(1)
+endif
 endef
-$(foreach file,$(SRC),$(eval $(call target_template,$(file))))
+$(foreach file,$(SRC),$(eval $(call target_template,$(file),$(firstword $(DIR)),,$(LIB))))
+$(foreach file,$(AUX),$(eval $(call target_template,$(file),$(lastword $(DIR)),streamer,$(firstword $(DIR)) $(LIB),1)))
 
-$(PROJECT): $(OBJ)
-	$(LD) $(addprefix -l,$(LDLIBS:-l%=%)) -emain -o $@ $^
+$(OUT)/$(PROJECT).o: 
+	./autogen.sh $(OUT)/autogen.c entry_points $(DEP)
+	$(CC) $(addprefix -include,$(shell find $(LIB) -name "*.h")) -c -o $@ $(OUT)/autogen.c
+
+
+$(PROJECT): $(OBJ) $(OUT)/$(PROJECT).o
+	$(LD) $(addprefix -l,$(LDLIBS:-l%=%)) -o $@ $^
 
 deploy: $(ALL)
 	-ln -sf ./ $(PROJECT)
@@ -51,7 +65,7 @@ deploy: $(ALL)
 	-$(RM) $(PROJECT)
 
 clean:
-	-$(RM) $(OBJ) $(PROJECT)
+	-$(RM) $(OBJ) $(OUT)/$(PROJECT).o $(OUT)/autogen.c $(PROJECT)
 
 todo:
 	-@for file in $(ALL:Makefile=); do \
