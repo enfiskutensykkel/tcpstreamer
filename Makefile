@@ -16,16 +16,17 @@ DEFINES=DEF_SIZE=1460 DEF_PORT=50000 DEF_DUR=10 MAX_CONNS=10 \
 
 
 ### Generic make variables ###
-OUT := $(TMP_DIR)
-SRC := $(shell find $(SRC_DIR)/ -mindepth 1 -name "*.c")
-HDR := $(shell find $(SRC_DIR)/ -mindepth 1 -name "*.h")
-ALL := $(SRC) $(HDR) Makefile README
+OUT := $(TMP_DIR:%/=%)
+DIR := $(SRC_DIR:%/=%)
+SRC := $(shell find $(DIR)/ -mindepth 1 -name "*.c")
+HDR := $(shell find $(DIR)/ -mindepth 1 -name "*.h")
+ALL := $(SRC) $(HDR) Makefile README.md
 DEF := $(DEFINES:-D%=%)
 
 ### Compiler and linker settings ###
-CC := gcc
+CC := colorgcc # gcc
 LD := gcc
-CFLAGS := -Wall -Werror -g -std=gnu99
+CFLAGS := -std=gnu99 -Wall -Wextra -pedantic -g 
 LDLIBS := pcap pthread
 
 
@@ -34,10 +35,10 @@ LDLIBS := pcap pthread
 all: $(PROJECT)
 
 define target_template
-$(OUT)/$(subst /,_,$(dir $(1:./%=%)))$(notdir $(1:%.c=%.o)): $(1)
+$(OUT)/$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(DIR)/%=%))))$(notdir $(1:%.c=%.o)): $(1)
 	-@mkdir -p $$(@D)
 	$$(CC) $$(CFLAGS) $(addprefix -D,$(DEF:-D%=%)) -o $$@ -c $$?
-OBJ+=$(OUT)/$(subst /,_,$(dir $(1:./%=%)))$(notdir $(1:%.c=%.o))
+OBJ+=$(OUT)/$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(DIR)/%=%))))$(notdir $(1:%.c=%.o))
 endef
 $(foreach file,$(SRC),$(eval $(call target_template,$(file))))
 
