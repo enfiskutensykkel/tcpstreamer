@@ -62,7 +62,6 @@ $(foreach file,$(SRC),$(eval $(call target_template,$(file),$(subst /,_,$(patsub
 $(foreach file,$(EXT),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))),"s/^\s*#define\s+BOOTSTRAP\s+(\w*)\s*$$/\1/p")))
 
 $(OUT)/autogen.o: $(GEN)
-	echo $(FUN)
 	@echo "$(foreach fun,$(FUN),$(call fundecl_tmpl,$(fun)))" > $(@:%.o=%.c)
 	@echo "$(call arraydecl_tmpl)" >> $(@:%.o=%.c)
 	$(CC) -c -o $@ $(@:%.o=%.c)
