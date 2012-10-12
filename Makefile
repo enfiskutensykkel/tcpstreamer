@@ -4,29 +4,30 @@ PROJECT=streamer
 # Temporary directory to store object files
 TMP_DIR=build
 
-# Core source code directory
-SRC_DIR=core
+# Exported headers and shared library function declarations
+INC_DIR=lib
 
-# Custom streamers source code
-AUX_DIR=src
+# Source code directory
+SRC_DIR=src
 
-# Global headers
-LIB_DIR=lib
+# Custom streamers directory
+EXT_DIR=streamers
 
 # Custom defines and constants
-DEFINES=DEF_SIZE=1460 DEF_PORT=50000 DEF_DUR=10
+INCLUDE=lib/defs.h
+DEFINES=
 
 
 
 ### Generic make variables ###
-OUT := $(TMP_DIR:%/=%)
-DIR := $(SRC_DIR:%/=%) $(AUX_DIR:%/=%)
-LIB := $(LIB_DIR:%/=%)
-SRC := $(shell find $(firstword $(DIR))/ -name "*.c") 
-AUX := $(shell find $(lastword $(DIR))/ -maxdepth 1 -name "*.c")
-HDR := $(foreach d,$(DIR) $(LIB),$(shell find $(d) -name "*.h"))
-ALL := $(SRC) $(HDR) $(AUX) Makefile README.md autogen.sh
 DEF := $(DEFINES:-D%=%)
+OUT := $(TMP_DIR:%/=%)
+INC := $(INC_DIR:%/=%)
+SRC := $(foreach d,$(SRC_DIR:%/=%),$(shell find $(d)/ -name "*.c"))
+EXT := $(foreach d,$(EXT_DIR:%/=%),$(shell find $(d)/ -name "*.c"))
+HDR := $(foreach d,$(SRC_DIR:%/=%) $(INC) $(EXT_DIR:%/=%),$(shell find $(d)/ -name "*.h"))
+ALL := $(SRC) $(HDR) Makefile README.md autogen.sh
+
 
 ### Compiler and linker settings ###
 CC := colorgcc # gcc
@@ -35,37 +36,50 @@ CFLAGS := -std=gnu99 -Wall -Wextra -pedantic -g
 LDLIBS := pcap pthread
 
 
+### Templates for auto-generated code ###
+define fundecl_tmpl 
+extern void $(1)();
+endef
+
+define arraydecl_tmpl 
+void (*bootstrappers[])() = { $(addprefix &,$(FUN:%=%,)) 0 };
+endef
+
+
 ### Make targets ###
-.PHONY: $(PROJECT) all deploy clean todo
+.PHONY: $(PROJECT) all clean realclean tar todo
 all: $(PROJECT)
 
 define target_template
-$(OUT)/$(if $(3),$(3)_)$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(2)/%=%))))$(notdir $(1:%.c=%.o)): $(1)
+$(OUT)/$(2): $(1) $(INCLUDE)
 	-@mkdir -p $$(@D)
-	$$(CC) $(if $(4),$(addprefix -I,$(4))) $$(CFLAGS) $(addprefix -D,$(DEF:-D%=%)) -o $$@ -c $$?
-OBJ+=$(OUT)/$(if $(3),$(3)_)$(subst /,_,$(patsubst ./%,%,$(dir $(1:$(2)/%=%))))$(notdir $(1:%.c=%.o))
-ifeq (1,$(5))
-DEP+=$(1)
-endif
+	$$(CC) $$(CFLAGS) $(addprefix -I, $(INC)) $(addprefix -include, $(INCLUDE)) $(addprefix -D,$(DEF)) -o $$@ -c $$<
+OBJ += $(OUT)/$(2)
+GEN += $(if $(3),$(OUT)/$(2))
+FUN += $(if $(3),$(shell sed -nE $(3) $(1)))
 endef
-$(foreach file,$(SRC),$(eval $(call target_template,$(file),$(firstword $(DIR)),,$(LIB))))
-$(foreach file,$(AUX),$(eval $(call target_template,$(file),$(lastword $(DIR)),streamer,$(firstword $(DIR)) $(LIB),1)))
+$(foreach file,$(SRC),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))))))
+$(foreach file,$(EXT),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))),"s/^\s*#define\s+BOOTSTRAP\s+(\w*)\s*$$/\1/p")))
 
-$(OUT)/$(PROJECT).o: 
-	./autogen.sh $(OUT)/autogen.c entry_points $(DEP)
-	$(CC) $(addprefix -include,$(shell find $(LIB) -name "*.h")) -c -o $@ $(OUT)/autogen.c
+$(OUT)/autogen.o: $(GEN)
+	echo $(FUN)
+	@echo "$(foreach fun,$(FUN),$(call fundecl_tmpl,$(fun)))" > $(@:%.o=%.c)
+	@echo "$(call arraydecl_tmpl)" >> $(@:%.o=%.c)
+	$(CC) -c -o $@ $(@:%.o=%.c)
 
-
-$(PROJECT): $(OBJ) $(OUT)/$(PROJECT).o
+$(PROJECT): $(OBJ) $(OUT)/autogen.o
 	$(LD) $(addprefix -l,$(LDLIBS:-l%=%)) -o $@ $^
 
-deploy: $(ALL)
+clean:
+	-$(RM) $(OBJ) $(OUT)/autogen.o 
+
+realclean: clean
+	-$(RM) $(OUT)/autogen.c $(PROJECT)
+
+tar: $(ALL)
 	-ln -sf ./ $(PROJECT)
 	tar czf $(PROJECT)-$(shell date +%Y%m%d%H%M).tar.gz $(patsubst %,$(PROJECT)/%,$^)
 	-$(RM) $(PROJECT)
-
-clean:
-	-$(RM) $(OBJ) $(OUT)/$(PROJECT).o $(OUT)/autogen.c $(PROJECT)
 
 todo:
 	-@for file in $(ALL:Makefile=); do \
