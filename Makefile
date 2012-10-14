@@ -37,12 +37,19 @@ LDLIBS := pcap pthread
 
 
 ### Templates for auto-generated code ###
+define struct_tmpl
+struct streamer { \
+	const char *id; \
+        void (*bootstrapper)(); \
+};
+endef
+
 define fundecl_tmpl 
-extern void $(1)();
+extern void __$(1)();
 endef
 
 define arraydecl_tmpl 
-void (*bootstrappers[])() = { $(addprefix &,$(FUN:%=%,)) 0 };
+struct streamer streamers[] = { $(foreach fun,$(FUN),{"$(fun)", &__$(fun)},) {0, 0} };
 endef
 
 
@@ -59,11 +66,12 @@ GEN += $(if $(3),$(OUT)/$(2))
 FUN += $(if $(3),$(shell sed -nE $(3) $(1)))
 endef
 $(foreach file,$(SRC),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))))))
-$(foreach file,$(EXT),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))),"s/^\s*#define\s+BOOTSTRAP\s+(\w*)\s*$$/\1/p")))
+$(foreach file,$(EXT),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))),"s/\s*STREAMER\(\s*&?(\w+)\s*(,\s*&?\w+)*\s*\)/\1/p")))
 
 $(OUT)/autogen.o: $(GEN)
-	@echo "$(foreach fun,$(FUN),$(call fundecl_tmpl,$(fun)))" > $(@:%.o=%.c)
-	@echo "$(call arraydecl_tmpl)" >> $(@:%.o=%.c)
+	@echo '$(call struct_tmpl)' > $(@:%.o=%.c)
+	@echo '$(foreach fun,$(FUN),$(call fundecl_tmpl,$(fun)))' >> $(@:%.o=%.c)
+	@echo '$(call arraydecl_tmpl)' >> $(@:%.o=%.c)
 	$(CC) -c -o $@ $(@:%.o=%.c)
 
 $(PROJECT): $(OBJ) $(OUT)/autogen.o
