@@ -59,7 +59,26 @@ arguments they require, see
 
 
 
-/* Program design
-/--------------
+Compilitation and building the project
+--------------------------------------
 
-TODO  */
+From a source code point of view, any C99 compliant C compiler will do for
+compiling and building the project. However, I have a quite intricate build 
+script (Makefile) to make some auto-generated code for me due to the program
+design (see the 'Program design' section). So unless you replicate the building
+in some other fashion, I recommend that you use:
+* Make (build-essentials)
+* GCC
+* sh or bash
+
+If you're running a Linux distro, this shouldn't be a problem. Simply type
+		make all
+into the terminal in the root project directory.
+
+If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html).
+
+
+
+Program design
+--------------
+
