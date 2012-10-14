@@ -23,3 +23,43 @@ streams, e.g. HTTP and FTP, which TCP congestion avoidance originally was
 designed for.
 
 For more information regarding the problem area, please refer [the litterature](http://www.duo.uio.no/sok/work.html?WORKID=99354&fid=55350).
+
+
+
+Usage
+-----
+
+You can either start this program as a receiver instance, in which case it will
+accept incoming TCP connections and act as a traffic sink, or you can start 
+this program as a streamer instance, loading one of the available streamer
+implementations.
+
+To start a receiver instance, simply invoke the program with:
+
+		./streamer
+
+To start a streamer instance, invoke the program with:
+
+		./streamer -s implementation hostname
+
+Where implementation is the name of an available streamer implementation, and 
+hostname is either the hostname or IPv4 address of the host running a receiver
+instance. The default port is 50000, if you want to change the port the program
+listens to / streams to, use the -p option.
+
+		./streamer -p 1234
+
+		./streamer -p 1234 -s implementation hostname
+
+Depending on the streamer implementation, you might need to pass arguments to
+the streamer program. To see a list of available streamer implementations and
+arguments they require, see
+
+		./streamer --help [implementation]
+
+
+
+/* Program design
+/--------------
+
+TODO  */
