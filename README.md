@@ -45,11 +45,7 @@ To start a streamer instance, invoke the program with:
 Where implementation is the name of an available streamer implementation, and 
 hostname is either the hostname or IPv4 address of the host running a receiver
 instance. The default port is 50000, if you want to change the port the program
-listens to / streams to, use the -p option.
-
-		./streamer -p 1234
-
-		./streamer -p 1234 -s implementation hostname
+listens to / streams to, use the `-p` option.
 
 Depending on the streamer implementation, you might need to pass arguments to
 the streamer program. To see a list of available streamer implementations and
@@ -59,7 +55,7 @@ arguments they require, see
 
 
 
-Compilitation and building the project
+Compiling and building the project
 --------------------------------------
 
 From a source code point of view, any C99 compliant C compiler will do for
@@ -72,8 +68,7 @@ in some other fashion, I recommend that you use:
 * sh or bash
 
 If you're running a Linux distro, this shouldn't be a problem. Simply type
-		make all
-into the terminal in the root project directory.
+`make all` into the terminal in the root project directory.
 
 If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html).
 
