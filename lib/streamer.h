@@ -97,11 +97,11 @@ typedef ssize_t (*streamer_t)(int sock_desc, ...);
 			){\
 		void (*func_list[])(streamer_t) = { __VA_ARGS__ };\
 		*streamer= entry_point ;\
-		*callback=*init=*uninit=(void(*)(streamer_t)) 0;\
+		*init=*uninit=(void(*)(streamer_t))0;\
 		switch(sizeof(func_list)/sizeof(void(*)(streamer_t))){\
 			case 3:*uninit = func_list[2];\
 			case 2:*init = func_list[1];\
-			case 1:*callback = func_list[0]; \
+			case 1:*callback=func_list[0];\
 		}}
 
 #endif

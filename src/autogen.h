@@ -5,7 +5,7 @@
 
 /* Deal with the auto-generated code for entry points */
 extern struct {
-	char const* instance_name;
+	char const* name;
 
 	void (*bootstrapper)(
 			streamer_t*,
