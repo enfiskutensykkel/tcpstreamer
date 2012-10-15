@@ -1,6 +1,5 @@
 streamer
 ========
-
 An utility program to set up TCP streams with the characteristics similar to 
 those of streams created by real-time and interactive applications,
 and to see how these streams behave in competition with both each other and
@@ -28,7 +27,6 @@ For more information regarding the problem area, please refer [the litterature](
 
 Usage
 -----
-
 You can either start this program as a receiver instance, in which case it will
 accept incoming TCP connections and act as a traffic sink, or you can start 
 this program as a streamer instance, loading one of the available streamer
@@ -55,20 +53,22 @@ arguments they require, see
 
 
 
-Compiling and building the project
---------------------------------------
+### Compiling and building the project ###
+I think that, from a C code point of view, any C99 compliant C compiler would
+probably do the trick, although I can't guarantee that I'm not relying on some
+GNU99 specific features.
 
-From a source code point of view, any C99 compliant C compiler will do for
-compiling and building the project. However, I have a quite intricate build 
-script (Makefile) to make some auto-generated code for me due to the program
-design (see the 'Program design' section). So unless you replicate the building
-in some other fashion, I recommend that you use:
-* Make (build-essentials)
+I do, however, rely on a build script (the Makefile) to parse the streamer 
+source files and make some auto-generated code. So unless you replicate the
+building process in some other way, I recommend that you use:
+* GNU Make 
 * GCC
 * sh or bash
 
 If you're running a Linux distro, this shouldn't be a problem. Simply type
-`make all` into the terminal in the root project directory.
+`make all` into the terminal in the root project directory. Most distros either
+include GCC and Make by default, or have it easily available (typical in a 
+package called `build-essentials` or something similar).
 
 If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html).
 
@@ -76,4 +76,35 @@ If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.
 
 Program design
 --------------
+The purpose of this program is to set up a [TCP](http://en.wikipedia.org/wiki/Transmission_Control_Protocol)
+byte stream from a sender  instance to a receiver instance running on two 
+different hosts in a network or test-bed. Today, a great variety of 
+applications and use cases for TCP exists, from file transfer applications and
+video streaming, to MMOGs and VoIP applications. In other words, TCP is used 
+for streaming with the intention of maximizing throughput, to streaming with 
+the intention of interactivity. The problem with TCP is that it was designed at
+a time where reliability and congestion avoidance were important issues, and 
+when there existed few  applications that had requirements for interacitivy and
+real-time traffic.
 
+Now, if you're thinking to yourself "but [UDP](http://en.wikipedia.org/wiki/User_Datagram_Protocol#Reliability_and_congestion_control_solutions) is used where interactivity is
+more important than congestion avoidance and reliability (packet loss and 
+packet ordering)", then let me just stop you from reading further right now.
+Because of mechanisms such as [NAT](http://en.wikipedia.org/wiki/Network_address_translation)
+and the little support for [NAT Traversal](http://en.wikipedia.org/wiki/NAT_traversal)
+in consumer routers, UDP simply isn't feasible to set up. Because of that 
+exact reason, many applications that you'd think would use UDP does infact
+use TCP. If you don't believe me, try running `netstat` the next time you're
+on Skype, for example. TCP avoids problems introduced by NAT, simply because
+it is full duplex; data can flow in both directions.
+
+Back on topic: Since these very different scenarios exists, but they all are 
+using the same protocol, it might be of interest to test how TCP performs
+considering these different characteristics. That's why I've implemented this
+utility program with the intention of it being easy to extend with additional
+streaming characteristics. I have therefore separated the source code in two
+parts, one is the _frame_ that provides functionality for bootstrapping and
+receiving a stream, while the other part is the actual _streamer implementations_.
+The main idea is that a developer can create his own streamer implementation 
+without needing to touch the core source code of this utility; in other words
+much like creating plug-ins for a program.
