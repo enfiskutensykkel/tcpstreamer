@@ -87,9 +87,8 @@ a time where reliability and congestion avoidance were important issues, and
 when there existed few  applications that had requirements for interacitivy and
 real-time traffic.
 
-Now, if you're thinking to yourself "but [UDP](http://en.wikipedia.org/wiki/User_Datagram_Protocol#Reliability_and_congestion_control_solutions) is used where interactivity is
-more important than congestion avoidance and reliability (packet loss and 
-packet ordering)", then let me just stop you from reading further right now.
+Now, if you're thinking to yourself "*but [UDP](http://en.wikipedia.org/wiki/User_Datagram_Protocol#Reliability_and_congestion_control_solutions) is used where interactivity is more important than congestion avoidance and reliability (packet loss and  packet ordering)*",
+then let me just stop you right there!
 Because of mechanisms such as [NAT](http://en.wikipedia.org/wiki/Network_address_translation)
 and the little support for [NAT Traversal](http://en.wikipedia.org/wiki/NAT_traversal)
 in consumer routers, UDP simply isn't feasible to set up. Because of that 
@@ -103,8 +102,8 @@ using the same protocol, it might be of interest to test how TCP performs
 considering these different characteristics. That's why I've implemented this
 utility program with the intention of it being easy to extend with additional
 streaming characteristics. I have therefore separated the source code in two
-parts, one is the _frame_ that provides functionality for bootstrapping and
-receiving a stream, while the other part is the actual _streamer implementations_.
+parts, one is the **frame** that provides functionality for bootstrapping and
+receiving a stream, while the other part is the actual **streamer implementations**.
 The main idea is that a developer can create his own streamer implementation 
 without needing to touch the core source code of this utility; in other words
 much like creating plug-ins for a program.
