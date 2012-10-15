@@ -36,7 +36,7 @@ static struct tbl_ent {
 
 
 /* Streamer option lists */
-static struct option **streamer_args = NULL;
+static struct option **streamer_opts = NULL;
 
 /* Option registration for streamers */
 void register_option(streamer_t streamer, struct option opts)
@@ -50,15 +50,15 @@ void register_option(streamer_t streamer, struct option opts)
 	}
 	
 	if (streamers[i].bootstrapper != NULL) {
-		for (j = 0; streamer_args[i][j].name != NULL; ++j);
+		for (j = 0; streamer_opts[i][j].name != NULL; ++j);
 
-		if ((streamer_args[i] = realloc(streamer_args[i], sizeof(struct option) * (j+2))) == NULL) {
+		if ((streamer_opts[i] = realloc(streamer_opts[i], sizeof(struct option) * (j+2))) == NULL) {
 			perror("realloc");
 			exit(1);
 		}
 
-		memcpy(&streamer_args[i][j], &opts, sizeof(struct option));
-		memcpy(&streamer_args[i][j+1], &empty, sizeof(struct option));
+		memcpy(&streamer_opts[i][j], &opts, sizeof(struct option));
+		memcpy(&streamer_opts[i][j+1], &empty, sizeof(struct option));
 	}
 }
 
@@ -68,9 +68,12 @@ void register_option(streamer_t streamer, struct option opts)
 /* Parse command line arguments and start program */
 int main(int argc, char **argv)
 {
-	int i, num_streamers;
+	int i, num_streamers, opt, tblidx, optidx;
 	char *port = NUM_2_STR(DEF_PORT), *sptr = NULL;
 	unsigned duration = DEF_DUR;
+	streamer_t streamer = NULL;
+	char const *streamer_args[argc];
+	struct option *opts = NULL;
 	
 
 	/* Initialize streamer table */
@@ -86,16 +89,16 @@ int main(int argc, char **argv)
 
 
 	/* Set up the option registration */
-	if ((streamer_args = malloc(sizeof(struct option*) * num_streamers)) == NULL) {
+	if ((streamer_opts = malloc(sizeof(struct option*) * num_streamers)) == NULL) {
 		perror("malloc");
 		goto cleanup_and_die;
 	}
 	for (i = 0; i < num_streamers; ++i) {
-		if ((streamer_args[i] = malloc(sizeof(struct option))) == NULL) {
+		if ((streamer_opts[i] = malloc(sizeof(struct option))) == NULL) {
 			perror("malloc");
 			goto cleanup_and_die;
 		}
-		memset(&streamer_args[i][0], 0, sizeof(struct option));
+		memset(&streamer_opts[i][0], 0, sizeof(struct option));
 	}
 	
 
@@ -107,9 +110,7 @@ int main(int argc, char **argv)
 
 
 	/* Parse command line arguments */
-	int opt, idx = -1;
-	struct option *opts = NULL;
-	while ((opt = getopt_long(argc, argv, ":t:p:s:", opts, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, ":t:p:s:", opts, &optidx)) != -1) {
 		switch (opt) {
 
 			case 'p':
@@ -133,7 +134,7 @@ int main(int argc, char **argv)
 				break;
 
 			case 's':
-				if (idx > -1) {
+				if (streamer != NULL) {
 					fprintf(stderr, "Option -s is already set\n");
 					give_usage(stderr, argv[0], -1);
 					goto cleanup_and_die;
@@ -149,8 +150,13 @@ int main(int argc, char **argv)
 					goto cleanup_and_die;
 				}
 
-				idx = i;
-				opts = streamer_args[i];
+				tblidx = i;
+				opts = streamer_opts[tblidx];
+				streamer = streamer_tbl[tblidx].streamer;
+			
+				for (i = 0; streamer_opts[tblidx][i].name != NULL; ++i)
+					streamer_args[i] = NULL;
+
 				break;
 
 			case ':':
@@ -159,7 +165,7 @@ int main(int argc, char **argv)
 				else
 					fprintf(stderr, "Option -%c requires a parameter\n", optopt);
 
-				give_usage(stderr, argv[0], idx);
+				give_usage(stderr, argv[0], tblidx);
 				goto cleanup_and_die;
 
 			case '?':
@@ -167,13 +173,22 @@ int main(int argc, char **argv)
 					fprintf(stderr, "Unknown argument: %s\n", argv[optind-1]);
 				else
 					fprintf(stderr, "Unknown option: -%c\n", optopt);
-				give_usage(stderr, argv[0], idx);
+
+				give_usage(stderr, argv[0], tblidx);
 				goto cleanup_and_die;
 
 			default:
+				/* Parse arguments to the streamer */
+				if (streamer != NULL)
+					streamer_args[optidx] = optarg;
 				break;
 		}
 	}
+
+	
+	// XXX
+	if (streamer)
+		streamer(0xdeadbeef, streamer_args);
 
 
 	/* Uninitialize streamers */
@@ -185,19 +200,19 @@ int main(int argc, char **argv)
 	/* Clean up */
 	free(streamer_tbl);
 	for (i = 0; i < num_streamers; ++i) {
-		free(streamer_args[i]);
+		free(streamer_opts[i]);
 	}
-	free(streamer_args);
+	free(streamer_opts);
 
 	exit(0);
 
 cleanup_and_die:
 
 	free(streamer_tbl);
-	for (i = 0; streamer_args != NULL && i < num_streamers; ++i) {
-		free(streamer_args[i]);
+	for (i = 0; streamer_opts != NULL && i < num_streamers; ++i) {
+		free(streamer_opts[i]);
 	}
-	free(streamer_args);
+	free(streamer_opts);
 	exit(1);
 }
 
@@ -241,9 +256,9 @@ static void give_usage(FILE *fp, char *name, int streamer)
 				,
 				name, streamers[streamer].name);
 
-		for (i = 0, n = 0; streamer_args[streamer][i].name != NULL; n += 4 + strlen(streamer_args[streamer][i++].name)) {
+		for (i = 0, n = 0; streamer_opts[streamer][i].name != NULL; n += 4 + strlen(streamer_opts[streamer][i++].name)) {
 
-			if (n + 4 + strlen(streamer_args[streamer][i].name) > 80) 
+			if (n + 4 + strlen(streamer_opts[streamer][i].name) > 80) 
 				n = 0;
 
 			if (i > 0 && n == 0)
@@ -251,7 +266,7 @@ static void give_usage(FILE *fp, char *name, int streamer)
 			else if (i > 0)
 				fprintf(fp, ", ");
 
-			fprintf(fp, "--%s", streamer_args[streamer][i].name);
+			fprintf(fp, "--%s", streamer_opts[streamer][i].name);
 		}
 		fprintf(fp, "\n");
 

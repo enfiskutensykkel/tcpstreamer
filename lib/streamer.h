@@ -54,7 +54,7 @@
  *
  * static int run;
  *
- * ssize_t streamer(int socket_desc, ...)
+ * ssize_t streamer(int socket_desc, const char **arguments)
  * {
  *     run = 1;
  *     ssize_t total_sent = 0;
@@ -79,12 +79,11 @@
 
 /* Necessary includes */
 #include <sys/types.h>
-#include <stdarg.h>
 
 
 
 /* Streamer instance signature */
-typedef ssize_t (*streamer_t)(int sock_desc, ...);
+typedef ssize_t (*streamer_t)(int sock_desc, char const **arguments);
 
 
 
