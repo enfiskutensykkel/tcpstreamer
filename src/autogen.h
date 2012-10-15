@@ -3,7 +3,7 @@
 
 #include "streamer.h"
 
-/* Deal with the auto-generated code for entry points */
+/* Handle the auto-generated code for bootstrappers */
 extern struct {
 	char const* name;
 
