@@ -65,10 +65,10 @@ package called `build-essentials` or something similar).
 
 You also need the following libraries to be installed and working on your
 system:
-* pthreads
 * libpcap
 
-
+I also use POSIX signals and POSIX threads (pthreads), so you need to have a 
+system that supports these.
 If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html).
 
 
