@@ -4,7 +4,7 @@
 /* A user implementing a streamer, this signature must be uesed for the 
  * streamer entry point:
  *    
- *     ssize_t streamer_entry_point(int socket_desc, ...);
+ *     ssize_t streamer_entry_point(int socket_desc, const char **argv);
  *
  * The streamer function must return the number of bytes successfully
  * transmitted until it has completed or is cancelled, or a value less than
