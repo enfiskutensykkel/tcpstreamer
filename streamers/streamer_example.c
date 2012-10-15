@@ -39,15 +39,15 @@ void example_sighandler(streamer_t instance)
 void example_bootstrap(streamer_t entry_point)
 {
 	int i;
-	struct option options[] = {
+	struct option streamer_args[] = {
 		{"run", 2, &run, 15},
 		{"string", 1, 0, 0},
 		{0, 0, 0, 0}
 	};
 
 	if (entry_point == &example_entry_point) {
-		for (i = 0; options[i].name != NULL; ++i)
-			register_option(&example_entry_point, options[i]);
+		for (i = 0; streamer_args[i].name != NULL; ++i)
+			register_argument(&example_entry_point, streamer_args[i]);
 	}
 }
 

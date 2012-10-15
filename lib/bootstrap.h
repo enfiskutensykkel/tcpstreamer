@@ -4,7 +4,7 @@
 #include "streamer.h"
 #include <getopt.h>
 
-/* Register an option to a streamer implementation. */
-void register_option(streamer_t streamer, struct option option);
+/* Register an argument to the streamer entry point. */
+void register_argument(streamer_t streamer, struct option argument);
 
 #endif
