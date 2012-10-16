@@ -45,6 +45,8 @@ hostname is either the hostname or IPv4 address of the host running a receiver
 instance. The default port is 50000, if you want to change the port the program
 listens to / streams to, use the `-p` option.
 
+		./streamer -h [-s implementation]
+
 
 
 ### Compiling and building the project ###

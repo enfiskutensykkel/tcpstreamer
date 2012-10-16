@@ -129,8 +129,8 @@ int main(int argc, char **argv)
 
 
 	/* Parse command line options and arguments (parameters) */
-	int opt, optidx;
-	while ((opt = getopt_long(argc, argv, ":t:p:s:", opts, &optidx)) != -1) {
+	int opt, optidx, help = 0;
+	while ((opt = getopt_long(argc, argv, ":ht:p:s:", opts, &optidx)) != -1) {
 		switch (opt) {
 
 			case ':': // missing parameter value
@@ -150,6 +150,10 @@ int main(int argc, char **argv)
 
 				give_usage(stderr, argv[0], streamer_idx);
 				goto cleanup_and_die;
+
+			case 'h':
+				help = 1;
+				break;
 
 			case 'p': // port
 				sptr = NULL;
@@ -203,6 +207,10 @@ int main(int argc, char **argv)
 
 				break;
 		}
+	}
+	if (help) {
+		give_usage(stdout, argv[0], streamer_idx);
+		goto cleanup_and_die;
 	}
 
 
