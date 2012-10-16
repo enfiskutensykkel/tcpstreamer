@@ -1,5 +1,7 @@
+#include "netutil.h"
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,12 +10,53 @@
 
 
 
+/* Look up the hostname associated to an address */
+int lookup_name(struct sockaddr_in addr, char *hostname, int namelen)
+{
+	int status;
+	socklen_t addrlen;
+
+	addrlen = sizeof(struct sockaddr_in);
+	status = getnameinfo((struct sockaddr*) &addr, addrlen, hostname, namelen, NULL, 0, NI_NUMERICHOST);
+
+	if (status != 0) {
+		fprintf(stderr, "getnameinfo: %s\n", gai_strerror(status));
+		return -1;
+	}
+
+	return 0;
+}
+
+
+
+/* Look up the addresses of both sides of a socket */
+int lookup_addr(int sock_desc, struct sockaddr_in *local, struct sockaddr_in *remote)
+{
+	socklen_t len;
+
+	len = sizeof(struct sockaddr_in);
+	if (local != NULL && getsockname(sock_desc, (struct sockaddr*) local, &len) == -1) {
+		perror("getsockname");
+		return -1;
+	}
+
+	len = sizeof(struct sockaddr_in);
+	if (remote != NULL && getpeername(sock_desc, (struct sockaddr*) remote, &len) == -1) {
+		perror("getpeername");
+		return -2;
+	}
+
+	return 0;
+}
+
+
+
 /* Create a byte stream socket (TCP)
  *
  * If hostname is NULL, try to bind to port and listen.
  * Otherwise, try to connect to hostname.
  */
-int create_socket(const char *hostname, const char *port, char *c_hostname, int len_hostname)
+int create_sock(const char *hostname, const char *port)
 {
 	int sock_desc = -1, status;
 	struct addrinfo hints, *ptr, *host;
@@ -75,12 +118,6 @@ int create_socket(const char *hostname, const char *port, char *c_hostname, int 
 		if (ptr == NULL) {
 			freeaddrinfo(host);
 			return -1;
-		}
-
-		if (c_hostname != NULL && (status = getnameinfo(ptr->ai_addr, ptr->ai_addrlen, c_hostname, len_hostname, NULL, 0, NI_NUMERICHOST))) {
-			freeaddrinfo(host);
-			fprintf(stderr, "getnameinfo: %s\n", gai_strerror(status));
-			return -2;
 		}
 
 		freeaddrinfo(host);

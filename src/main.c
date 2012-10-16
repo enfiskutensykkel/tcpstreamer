@@ -4,9 +4,11 @@
 #include <string.h>
 #include <getopt.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include "netutil.h"
 #include "autogen.h"
 #include "bootstrap.h"
-#include <netdb.h>
 
 
 /* Create a string out of a numerical define */
@@ -14,9 +16,6 @@
 #define NUM_2_STR(str) STRINGIFY(str)
 
 
-
-/* Create a socket descriptor */
-extern int create_socket(const char *host, const char *port, char *cannonical, int len);
 
 /* Print program usage */
 static void give_usage(FILE *out, char *prog_name, int streamer_impl);
@@ -93,6 +92,7 @@ int main(int argc, char **argv)
 	char const *streamer_args[argc];   // arguments passed on to the streamer
 	unsigned duration = DEF_DUR;       // streamer duration
 	struct option *opts = NULL;
+	struct sockaddr_in addr;
 	
 
 	/* Initialize streamer table */
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 	if (streamer_idx == -1) {
 
 		fprintf(stdout, "No streamer selected, starting receiver.\n");
-		if ((socket_desc = create_socket(NULL, port, NULL, 0)) < 0) {
+		if ((socket_desc = create_sock(NULL, port)) < 0) {
 			fprintf(stderr, "Unable to bind to port %s\n", port);
 			goto cleanup_and_die;
 		}
@@ -231,10 +231,14 @@ int main(int argc, char **argv)
 		
 		host = argv[optind];
 		fprintf(stdout, "Streamer '%s' selected, connecting...\n", streamer_tbl[streamer_idx].name);
-		if ((socket_desc = create_socket(host, port, hostname, sizeof(hostname))) < 0) {
+		if ((socket_desc = create_sock(host, port)) < 0) {
 			fprintf(stderr, "Unable to connect to '%s'\n", host);
 			goto cleanup_and_die;
 		}
+		
+		lookup_addr(socket_desc, NULL, &addr);
+		lookup_name(addr, hostname, sizeof(hostname));
+
 		fprintf(stdout, "Successfully connected to %s\n", hostname);
 
 		/* Start streamer */
