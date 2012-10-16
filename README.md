@@ -158,3 +158,5 @@ TODO say something about varargs and that you may notice the ... in the signatur
 TODO mention init and uninit
 
 
+
+TODO say something about IPv4 and libpcap
