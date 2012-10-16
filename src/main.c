@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include "netutil.h"
+#include "netutils.h"
 #include "autogen.h"
 #include "bootstrap.h"
 
