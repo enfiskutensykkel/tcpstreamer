@@ -22,6 +22,11 @@ static void give_usage(FILE *out, char *prog_name, int streamer_impl);
 
 
 
+/* Receiver */
+extern void receiver(int socket_desc);
+
+
+
 /* Create a table of streamers and their corresponding functions */
 static struct tbl_ent {
 	const char *name;
@@ -74,7 +79,8 @@ static void handle_signal()
 {
 	if (streamer_idx != -1) {
 		streamer_tbl[streamer_idx].sighndlr(streamer_tbl[streamer_idx].streamer);
-	}
+	} else
+		receiver(-1);
 }
 
 
@@ -233,7 +239,7 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Listening to port %s\n", port);
 
 		/* Start receiver */
-		// TODO
+		receiver(socket_desc);
 
 	} else if (argc - optind > 0) {
 		

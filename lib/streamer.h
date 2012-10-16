@@ -48,13 +48,15 @@
  * a streamer can potentially stream data forever. A basic example of a 
  * streamer and a signal handler is as follows:
  *
+ * // NB! Note that since C doesn't have namespaces, use static where you think
+ * //     function names can conflict.
  * #include "streamer.h"
  * #include <unistd.h>
  * #include <stdarg.h>
  *
  * static int run;
  *
- * ssize_t streamer(int socket_desc, const char **arguments)
+ * static ssize_t streamer(int socket_desc, const char **arguments)
  * {
  *     run = 1;
  *     ssize_t total_sent = 0;
@@ -66,7 +68,7 @@
  *     return total_sent;
  * }
  *
- * void sig_handler(streamer_t instance)
+ * static void sig_handler(streamer_t instance)
  * {
  *     if (instance == streamer)
  *         run = 0;
