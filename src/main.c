@@ -206,6 +206,13 @@ int main(int argc, char **argv)
 	}
 
 
+	/* Create signal handler to deal with interruption */
+	if (signal(SIGINT, (void (*)(int)) &handle_signal) == SIG_ERR) {
+		perror("signal");
+		goto cleanup_and_die;
+	}
+
+
 	/* Create socket descriptor and start instance */
 	socket_desc = -1;
 	if (streamer_idx == -1) {
