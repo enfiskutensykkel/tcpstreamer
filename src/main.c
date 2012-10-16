@@ -1,16 +1,12 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/select.h>
 #include <string.h>
 #include <getopt.h>
 #include <signal.h>
-#include <stdarg.h>
 #include "autogen.h"
 #include "bootstrap.h"
+#include <netdb.h>
 
 
 /* Create a string out of a numerical define */
@@ -18,6 +14,9 @@
 #define NUM_2_STR(str) STRINGIFY(str)
 
 
+
+/* Create a socket descriptor */
+extern int create_socket(const char *host, const char *port, char *cannonical, int len);
 
 /* Print program usage */
 static void give_usage(FILE *out, char *prog_name, int streamer_impl);
@@ -37,6 +36,11 @@ static struct tbl_ent {
 
 /* Streamer parameter lists */
 static struct option **streamer_params = NULL;
+
+
+
+/* Current running streamer instance */
+static int streamer_idx = -1;
 
 
 
@@ -66,15 +70,28 @@ void register_argument(streamer_t streamer, struct option param)
 
 
 
+/* Signal handler to catch user interruption */
+static void handle_signal()
+{
+	if (streamer_idx != -1) {
+		streamer_tbl[streamer_idx].sighndlr(streamer_tbl[streamer_idx].streamer);
+	}
+}
+
+
 
 /* Parse command line arguments and start program */
 int main(int argc, char **argv)
 {
-	int i, num_streamers, opt, tblidx, optidx;
-	char *port = NUM_2_STR(DEF_PORT), *sptr = NULL;
-	unsigned duration = DEF_DUR;
-	streamer_t streamer = NULL;
-	char const *streamer_args[argc];
+	int i, 
+		num_streamers,                 // total number of streamers
+		socket_desc;                   // socket descriptor
+	char hostname[INET_ADDRSTRLEN],    // the canonical hostname
+		 *port = NUM_2_STR(DEF_PORT),  // port number
+		 *host = NULL,                 // hostname given as argument
+		 *sptr = NULL;
+	char const *streamer_args[argc];   // arguments passed on to the streamer
+	unsigned duration = DEF_DUR;       // streamer duration
 	struct option *opts = NULL;
 	
 
@@ -112,6 +129,7 @@ int main(int argc, char **argv)
 
 
 	/* Parse command line options and arguments (parameters) */
+	int opt, optidx;
 	while ((opt = getopt_long(argc, argv, ":t:p:s:", opts, &optidx)) != -1) {
 		switch (opt) {
 
@@ -121,7 +139,7 @@ int main(int argc, char **argv)
 				else
 					fprintf(stderr, "Option -%c requires a parameter\n", optopt);
 
-				give_usage(stderr, argv[0], tblidx);
+				give_usage(stderr, argv[0], streamer_idx);
 				goto cleanup_and_die;
 
 			case '?': // unknown parameter
@@ -130,7 +148,7 @@ int main(int argc, char **argv)
 				else
 					fprintf(stderr, "Unknown option: -%c\n", optopt);
 
-				give_usage(stderr, argv[0], tblidx);
+				give_usage(stderr, argv[0], streamer_idx);
 				goto cleanup_and_die;
 
 			case 'p': // port
@@ -155,7 +173,7 @@ int main(int argc, char **argv)
 
 			case 's': // select streamer
 
-				if (streamer != NULL) {
+				if (streamer_idx != -1) {
 					fprintf(stderr, "Streamer is already selected\n");
 					give_usage(stderr, argv[0], -1);
 					goto cleanup_and_die;
@@ -171,28 +189,58 @@ int main(int argc, char **argv)
 					goto cleanup_and_die;
 				}
 
-				tblidx = i;
-				opts = streamer_params[tblidx];
-				streamer = streamer_tbl[tblidx].streamer;
+				streamer_idx = i;
+				opts = streamer_params[streamer_idx];
 			
-				for (i = 0; streamer_params[tblidx][i].name != NULL; ++i)
+				for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i)
 					streamer_args[i] = NULL;
 
 				break;
 
 			default: // register streamer argument
-				if (streamer != NULL)
+				if (streamer_idx != -1)
 					streamer_args[optidx] = optarg;
 
 				break;
 		}
 	}
 
-	
-	// XXX
-	if (streamer)
-		streamer(0xdeadbeef, streamer_args);
 
+	/* Create socket descriptor and start instance */
+	socket_desc = -1;
+	if (streamer_idx == -1) {
+
+		fprintf(stdout, "No streamer selected, starting receiver.\n");
+		if ((socket_desc = create_socket(NULL, port, NULL, 0)) < 0) {
+			fprintf(stderr, "Unable to bind to port %s\n", port);
+			goto cleanup_and_die;
+		}
+		fprintf(stdout, "Listening to port %s\n", port);
+
+		/* Start receiver */
+		// TODO
+
+	} else if (argc - optind > 0) {
+		
+		host = argv[optind];
+		fprintf(stdout, "Streamer '%s' selected, connecting...\n", streamer_tbl[streamer_idx].name);
+		if ((socket_desc = create_socket(host, port, hostname, sizeof(hostname))) < 0) {
+			fprintf(stderr, "Unable to connect to '%s'\n", host);
+			goto cleanup_and_die;
+		}
+		fprintf(stdout, "Successfully connected to %s\n", hostname);
+
+		/* Start streamer */
+		if (streamer_tbl[streamer_idx].streamer(socket_desc, streamer_args) < 0) {
+			goto cleanup_and_die;
+		}
+
+	} else {
+		fprintf(stderr, "Streamer '%s' selected, but no host is given\n", streamer_tbl[streamer_idx].name);
+		give_usage(stderr, argv[0], streamer_idx);
+		goto cleanup_and_die;
+	}
+	
 
 	/* Uninitialize streamers */
 	for (i = 0; i < num_streamers; ++i) {
@@ -200,15 +248,23 @@ int main(int argc, char **argv)
 			streamer_tbl[i].uninit(streamer_tbl[i].streamer);
 	}
 
+
 	/* Clean up */
+	close(socket_desc);
+
 	free(streamer_tbl);
+
 	for (i = 0; i < num_streamers; ++i) {
 		free(streamer_params[i]);
 	}
 	free(streamer_params);
+
 	exit(0);
 
+
 cleanup_and_die:
+	if (socket_desc >= 0)
+		close(socket_desc);
 	free(streamer_tbl);
 	for (i = 0; streamer_params != NULL && i < num_streamers; ++i) {
 		free(streamer_params[i]);
