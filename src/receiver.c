@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <fcntl.h>
@@ -6,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <pthread.h>
 #include "netutils.h"
 
 
@@ -42,10 +44,8 @@ static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *soc
 
 
 
-static void* receiver(int listen_sock)
+void* receiver(void *argv)
 {
-	static int run = 1;
-
 	struct conn {
 		struct sockaddr_in addr; // address of the remote side of the connection
 		int                sock; // conn socket descriptor
@@ -59,28 +59,29 @@ static void* receiver(int listen_sock)
 	ssize_t rcvd, tot_rcvd;
 	int hi_sock, num_active;
 	fd_set socks, active;
+	int listen_sock;
+	int *run;
+	struct timeval wait = {0, 0};
 
-	/* Abort receiver */
-	if (listen_sock < 0) {
-		run = 0;
-		return;
-	}
+	/* Get thread arguments */
+	listen_sock = *((int*) argv);
+	run = *((int**) ((int*) argv+1));
 
 	/* Allocate buffer */
 	if ((buf = malloc(sizeof(char) * 1460)) == NULL) {
 		perror("malloc");
-		exit(1);
+		pthread_exit(NULL);
 	}
 
 	/* Initialize descriptor set */
 	FD_ZERO(&socks);
 	FD_SET(listen_sock, &socks);
 	hi_sock = listen_sock;
-
-	while (run) {
+	
+	while (*run == 1) {
 
 		active = socks;
-		if ((num_active = select(hi_sock + 1, &active, NULL, NULL, NULL)) == -1) 
+		if ((num_active = select(hi_sock + 1, &active, NULL, NULL, &wait)) == -1) 
 			break;
 
 		/* Accept incomming connection */
@@ -92,6 +93,7 @@ static void* receiver(int listen_sock)
 				if ((list = malloc(sizeof(struct conn))) == NULL) {
 					perror("malloc");
 					reject_connection(listen_sock);
+					break;
 				}
 
 				ptr = list;
@@ -102,6 +104,7 @@ static void* receiver(int listen_sock)
 				if ((ptr->next = malloc(sizeof(struct conn))) == NULL) {
 					perror("malloc");
 					reject_connection(listen_sock);
+					break;
 				}
 
 				ptr->next->prev = ptr;
@@ -109,10 +112,10 @@ static void* receiver(int listen_sock)
 				ptr = ptr->next;
 			}
 
-			/* set up new connection */
-			if (accept_connection(listen_sock, &(ptr->addr), &(ptr->sock)) < 0) {
-				exit(1);
-			}
+			// set up new connection
+			if (accept_connection(listen_sock, &(ptr->addr), &(ptr->sock)) < 0)
+				break; // something is wrong
+			
 			ptr->rcvd = 0;
 
 			lookup_name(ptr->addr, name, sizeof(name));
@@ -189,4 +192,6 @@ static void* receiver(int listen_sock)
 	}
 	free(list);
 	FD_ZERO(&socks);
+
+	pthread_exit(NULL);
 }
