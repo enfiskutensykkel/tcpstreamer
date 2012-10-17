@@ -11,10 +11,6 @@
 #include "bootstrap.h"
 
 
-/* Create a string out of a numerical define */
-#define STRINGIFY(str) #str
-#define NUM_2_STR(str) STRINGIFY(str)
-
 
 /* Table of streamers and their corresponding functions */
 static tblent_t *streamer_tbl = NULL;
@@ -31,34 +27,6 @@ static int streamer_idx = -1;
 extern void receiver(int socket_desc);
 
 
-
-
-/* Argument registration for streamers */
-int register_argument(struct option argument)
-{
-	struct option empty = { 0, 0, 0, 0 };
-	int i;
-
-	if (streamer_idx == -1)
-		return -1;
-	
-	for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i)
-		if (strcmp(argument.name, streamer_params[streamer_idx][i].name) == 0)
-			return -1;
-
-	if ((streamer_params[streamer_idx] = realloc(streamer_params[streamer_idx], sizeof(struct option) * (i+2))) == NULL) {
-		perror("realloc");
-		return -1;
-	}
-
-	memcpy(&streamer_params[streamer_idx][i], &argument, sizeof(struct option));
-	memcpy(&streamer_params[streamer_idx][i+1], &empty, sizeof(struct option));
-
-	return i;
-}
-
-
-
 /* Signal handler to catch user interruption */
 static void handle_signal()
 {
@@ -69,20 +37,24 @@ static void handle_signal()
 }
 
 
-
-
-
 /* Print program usage */
 static void give_usage(FILE *out, char *prog_name, int streamer_impl);
+
+
+
+
 
 /* Parse command line arguments and start program */
 int main(int argc, char **argv)
 {
+#define STRINGIFY(str) #str
+#define NUM_2_STR(str) STRINGIFY(str)
+
 	int i, 
 		num_streamers,                 // total number of streamers
 		socket_desc = -1;              // socket descriptor
 	char hostname[INET_ADDRSTRLEN],    // the canonical hostname
-		 *port = NUM_2_STR(DEF_PORT),  // port number
+		 *port = NUM_2_STR(DEF_PORT),  // port number (as string)
 		 *host = NULL,                 // hostname given as argument
 		 *sptr = NULL;
 	char const *streamer_args[argc];   // arguments passed on to the streamer
@@ -285,6 +257,32 @@ cleanup_and_die:
 	}
 	free(streamer_params);
 	exit(1);
+}
+
+
+
+/* Argument registration for streamers */
+int register_argument(struct option argument)
+{
+	struct option empty = { 0, 0, 0, 0 };
+	int i;
+
+	if (streamer_idx == -1)
+		return -1;
+	
+	for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i)
+		if (strcmp(argument.name, streamer_params[streamer_idx][i].name) == 0)
+			return -1;
+
+	if ((streamer_params[streamer_idx] = realloc(streamer_params[streamer_idx], sizeof(struct option) * (i+2))) == NULL) {
+		perror("realloc");
+		return -1;
+	}
+
+	memcpy(&streamer_params[streamer_idx][i], &argument, sizeof(struct option));
+	memcpy(&streamer_params[streamer_idx][i+1], &empty, sizeof(struct option));
+
+	return i;
 }
 
 
