@@ -52,7 +52,7 @@ void receiver(int listen_sock)
 		ssize_t            rcvd; // number of bytes received from connection
 		struct conn*       next; // next connection
 		struct conn*       prev; // previous connection
-	} *conns = NULL, *ptr, *tmp;
+	} *list = NULL, *ptr, *tmp;
 
 	char name[INET_ADDRSTRLEN];
 	void *buf = NULL;
@@ -86,15 +86,15 @@ void receiver(int listen_sock)
 		/* Accept incomming connection */
 		if (FD_ISSET(listen_sock, &active)) {
 			
-			// allocate new connection
-			for (ptr = conns; ptr != NULL && ptr->next != NULL; ptr = ptr->next);
+			/* allocate new connection */
+			for (ptr = list; ptr != NULL && ptr->next != NULL; ptr = ptr->next);
 			if (ptr == NULL) {
-				if ((conns = malloc(sizeof(struct conn))) == NULL) {
+				if ((list = malloc(sizeof(struct conn))) == NULL) {
 					perror("malloc");
 					reject_connection(listen_sock);
 				}
 
-				ptr = conns;
+				ptr = list;
 				ptr->next = NULL;
 				ptr->prev = NULL;
 
@@ -109,7 +109,7 @@ void receiver(int listen_sock)
 				ptr = ptr->next;
 			}
 
-			// set up new connection
+			/* set up new connection */
 			if (accept_connection(listen_sock, &(ptr->addr), &(ptr->sock)) < 0) {
 				exit(1);
 			}
@@ -118,7 +118,7 @@ void receiver(int listen_sock)
 			lookup_name(ptr->addr, name, sizeof(name));
 			fprintf(stdout, "Accepted connection from %s\n", name);
 
-			// update descriptor set
+			/* update descriptor set */
 			FD_SET(ptr->sock, &socks);
 			hi_sock = ptr->sock > hi_sock ? ptr->sock : hi_sock;
 			--num_active;
@@ -126,9 +126,12 @@ void receiver(int listen_sock)
 
 
 		/* Read data from the connections */
-		for (ptr = conns; num_active > 0 && ptr != NULL; ptr = ptr->next) {
+		ptr = list;
+		while (num_active > 0 && ptr != NULL) {
+
 			if (FD_ISSET(ptr->sock, &active)) {
 
+				/* read data from socket descriptor */
 				tot_rcvd = 0;
 				while ((rcvd = read(ptr->sock, buf, sizeof(char) * 1460)) > 0) {
 					tot_rcvd += rcvd;
@@ -138,41 +141,52 @@ void receiver(int listen_sock)
 				lookup_name(ptr->addr, name, sizeof(name));
 				fprintf(stdout, "Received %ld bytes from %s\n", tot_rcvd, name);
 				
+				/* close connection */
 				if (rcvd == 0 || (rcvd < 0 && errno != EAGAIN)) {
 					fprintf(stdout, "Closing connection from %s\n", name);
 
+					// remove socket descriptor from file descriptor set
 					close(ptr->sock);
 					FD_CLR(ptr->sock, &socks);
-					
-					if (ptr->prev != NULL)
-						ptr->prev->next = ptr->next;
 
+					// remove connection from connection list
 					if (ptr->next != NULL)
 						ptr->next->prev = ptr->prev;
 
+					if (ptr == list) {
+						tmp = list;
+						list = list->next;
+						free(tmp);
 
-					if (ptr->prev != NULL) {
+						if (list == NULL)
+							break;
+						else {
+							ptr = list;
+							continue;
+						}
+
+					} else {
+						ptr->prev->next = ptr->next;
+						ptr->prev->prev = ptr->prev;
 						tmp = ptr;
 						ptr = ptr->prev;
 						free(tmp);
-					} else {
-						free(conns);
-						conns = NULL;
-						break;
 					}
 				}
 
 				--num_active;
 			}
+
+			ptr = ptr->next;
 		}
 	}
 
 	/* Free resources */
 	free(buf);
-	for (ptr = conns; ptr != NULL; ptr = ptr->next) {
+	for (ptr = list; ptr != NULL; ptr = ptr->next) {
 		close(ptr->sock);
 		FD_CLR(ptr->sock, &socks);
 	}
-	free(conns);
+	free(list);
 	FD_ZERO(&socks);
 }
