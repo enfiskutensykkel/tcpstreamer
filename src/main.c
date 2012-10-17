@@ -27,9 +27,12 @@ static int streamer_run = 0;
 
 
 
-/* Receiver */
-extern void* receiver(void *argv);
+/* Run receiver */
+extern void receiver(int sock_desc, int *cond);
 
+
+/* Run streamer */
+static void run_streamer(void);
 
 
 /* Signal handler to catch user interruption */
@@ -66,9 +69,9 @@ int main(int argc, char **argv)
 	unsigned duration = DEF_DUR;       // streamer duration
 	struct option *opts = NULL;        // used for giving opts to getopt_long when a streamer is selected
 	struct sockaddr_in addr;           // used just for host pretty print
-	pthread_t receiver_thread;         // receiver thread
-	pthread_attr_t receiver_attr;      // receiver thread attributes
-	void *receiver_params = NULL;      // arguments to the receiver thread
+//	pthread_t thread;                  // executor thread
+//	pthread_attr_t thread_attr;        // thread attributes
+//	void *thread_params = NULL;        // arguments to the thread
 	
 
 	/* Initialize streamer table */
@@ -110,7 +113,7 @@ int main(int argc, char **argv)
 
 			case ':': // missing parameter value
 				if (optopt == '\0')
-					fprintf(stderr, "Argument %s requires a parameter\n", argv[optind-1]);
+					fprintf(stderr, "Argument %s requires a value\n", argv[optind-1]);
 				else
 					fprintf(stderr, "Option -%c requires a parameter\n", optopt);
 
@@ -208,35 +211,35 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Listening to port %s\n", port);
 
 		/* Set up arguments */
-		if ((receiver_params = malloc(sizeof(int) + sizeof(int*))) == NULL) {
-			perror("malloc");
-			goto cleanup_and_die;
-		}
-		*((int*) receiver_params) = socket_desc;
-		*((int**) ((int*) receiver_params+1)) = &streamer_run;
+//		if ((thread_params = malloc(sizeof(int) + sizeof(int*))) == NULL) {
+//			perror("malloc");
+//			goto cleanup_and_die;
+//		}
+//		*((int*) thread_params) = socket_desc;
+//		*((int**) ((int*) thread_params+1)) = &streamer_run;
 
-		if (pthread_attr_init(&receiver_attr) || pthread_attr_setdetachstate(&receiver_attr, PTHREAD_CREATE_JOINABLE)) {
-			perror("pthread_attr");
-			goto cleanup_and_die;
-		}
+//		if (pthread_attr_init(&thread_attr) || pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE)) {
+//			perror("pthread_attr");
+//			goto cleanup_and_die;
+//		}
 
 		/* Start receiver */
-		streamer_run = 1;
-		if (pthread_create(&receiver_thread, &receiver_attr, receiver, receiver_params)) {
-			perror("pthread_create");
-			goto cleanup_and_die;
-		}
-
-		/* Clean after receiver */
-		pthread_attr_destroy(&receiver_attr);
-		pthread_join(receiver_thread, NULL);
-		free(receiver_params);
+//		streamer_run = 1;
+//		if (pthread_create(&thread, &thread_attr, receiver, thread_params)) {
+//			perror("pthread_create");
+//			goto cleanup_and_die;
+//		}
+//
+//		/* Clean after receiver */
+//		pthread_attr_destroy(&thread_attr);
+//		pthread_join(thread, NULL);
+//		free(thread_params);
 		close(socket_desc);
 
 	} else if (argc - optind > 0) {
 		
 		host = argv[optind];
-		fprintf(stdout, "Streamer '%s' selected, connecting...\n", streamer_tbl[streamer_idx].name);
+		fprintf(stdout, "Streamer '%s' selected.\n", streamer_tbl[streamer_idx].name);
 		if ((socket_desc = create_sock(host, port)) < 0) {
 			fprintf(stderr, "Unable to connect to '%s'\n", host);
 			goto cleanup_and_die;
@@ -255,7 +258,7 @@ int main(int argc, char **argv)
 		close(socket_desc);
 
 	} else {
-		fprintf(stderr, "Streamer '%s' selected, but no host is given\n", streamer_tbl[streamer_idx].name);
+		fprintf(stderr, "Missing host argument\n");
 		give_usage(stderr, argv[0], streamer_idx);
 		goto cleanup_and_die;
 	}
@@ -280,7 +283,7 @@ int main(int argc, char **argv)
 
 
 cleanup_and_die:
-	free(receiver_params);
+//	free(thread_params);
 	if (socket_desc >= 0)
 		close(socket_desc);
 	free(streamer_tbl);
@@ -325,15 +328,19 @@ static void give_usage(FILE *fp, char *name, int streamer)
 	int i, n;
 	if (streamer < 0) {
 		fprintf(fp,
-				"Usage: %s [-p <port>] [-t <duration>] -s <streamer> [<args>...] <host>\n"
-				"   or: %s [-p <port>]\n\n"
-				"  -p\tUse <port> instead of default port.\n"
-				"  -s\tStart streamer instance.\n"
-				"  -t\tRun streamer for <duration> seconds.\n"
+				"Usage: %s [" U "options" R "] [" U "arguments" R "...] " U "host" R "\n"
+				"   or: %s [" U "options" R "]\n"
+				"\nAvailable options:\n"
+				"  -h  "   "        "   "\tShow usage, use in combination with -s for more.\n"
+				"  -p  " U "port"     R "\tUse specified " U "port" R " instead of default port.\n"
+				"  -v  " U "level"    R "\tSet verbosity to " U "level" R " (0=quiet, 1=normal, 2=verbose).\n"
+				"Streaming options:\n"
+				"  -s  " U "streamer" R "\tSelect " U "streamer" R " type.\n"
+				"  -t  " U "duration" R "\tRun streamer for " U "duration" R " (seconds).\n"
 				,
 				name, name);
 
-		fprintf(fp, "\nAvailable streamer implementations are:\n  ");
+		fprintf(fp, "\nAvailable streamers:\n  ");
 		for (i = 0, n = 0; streamer_tbl[i].streamer != NULL; n += 2 + strlen(streamer_tbl[i++].name)) {
 
 			if (n + 2 + strlen(streamer_tbl[i].name) > 80) 
@@ -349,25 +356,13 @@ static void give_usage(FILE *fp, char *name, int streamer)
 		fprintf(fp, "\n");
 
 	} else {
-		fprintf(fp, "Usage: %s [-p <port>] [-t <duration>] -s %s [<args>...] <host>\n"
-				"  -p\tUse <port> instead of default port.\n"
-				"  -t\tRun streamer for <duration> seconds.\n\n"
-				"Where <args> is one of the following:\n  "
+		fprintf(fp, "Usage: %s " B "-s %s" R " " U "arguments" R "... " U "host" R "\n"
+				"\nArguments:\n"
 				,
 				name, streamer_tbl[streamer].name);
 
-		for (i = 0, n = 0; streamer_params[streamer][i].name != NULL; n += 4 + strlen(streamer_params[streamer][i++].name)) {
-
-			if (n + 4 + strlen(streamer_params[streamer][i].name) > 80) 
-				n = 0;
-
-			if (i > 0 && n == 0)
-				fprintf(fp, ",\n  ");
-			else if (i > 0)
-				fprintf(fp, ", ");
-
-			fprintf(fp, "--%s", streamer_params[streamer][i].name);
+		for (i = 0; streamer_params[streamer][i].name != NULL; ++i) {
+			fprintf(fp, "  --%s%s\n", streamer_params[streamer][i].name, (streamer_params[streamer][i].has_arg > 0 ? "=" U "value" R : ""));
 		}
-		fprintf(fp, "\n");
 	}
 }

@@ -15,7 +15,7 @@ EXT_DIR=streamers
 
 # Custom defines and constants
 INCLUDE=lib/defs.h
-DEFINES=
+DEFINES=ANSI
 
 
 

@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <pthread.h>
 #include "netutils.h"
 
 
@@ -44,7 +43,7 @@ static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *soc
 
 
 
-void* receiver(void *argv)
+void receiver(int listen_sock, int *run)
 {
 	struct conn {
 		struct sockaddr_in addr; // address of the remote side of the connection
@@ -59,18 +58,12 @@ void* receiver(void *argv)
 	ssize_t rcvd, tot_rcvd;
 	int hi_sock, num_active;
 	fd_set socks, active;
-	int listen_sock;
-	int *run;
 	struct timeval wait = {0, 0};
-
-	/* Get thread arguments */
-	listen_sock = *((int*) argv);
-	run = *((int**) ((int*) argv+1));
 
 	/* Allocate buffer */
 	if ((buf = malloc(sizeof(char) * 1460)) == NULL) {
 		perror("malloc");
-		pthread_exit(NULL);
+		return;
 	}
 
 	/* Initialize descriptor set */
@@ -192,6 +185,4 @@ void* receiver(void *argv)
 	}
 	free(list);
 	FD_ZERO(&socks);
-
-	pthread_exit(NULL);
 }

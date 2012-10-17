@@ -68,12 +68,14 @@ static void bootstrap(streamer_t entry_point)
 {
 	struct option streamer_args[] = {
 		{"file", 1, 0, 0},
-		{"bufsz", 1, 0, 0}
+		{"bufsz", 1, 0, 0},
+		{"print", 0, 0, 0}
 	};
 
 	assert(entry_point == &simple_streamer);
 	register_argument(streamer_args[0]);
 	register_argument(streamer_args[1]);
+	register_argument(streamer_args[2]);
 }
 
 
