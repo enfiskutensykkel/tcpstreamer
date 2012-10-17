@@ -47,6 +47,7 @@ static ssize_t simple_streamer(int sock, const char **args)
 		send(sock, buf, sizeof(char) * bufsz, 0);
 	}
 
+	free(buf);
 	if (fp != NULL)
 		fclose(fp);
 
@@ -71,8 +72,8 @@ static void bootstrap(streamer_t entry_point)
 	};
 
 	assert(entry_point == &simple_streamer);
-	register_argument(&simple_streamer, streamer_args[0]);
-	register_argument(&simple_streamer, streamer_args[1]);
+	register_argument(streamer_args[0]);
+	register_argument(streamer_args[1]);
 }
 
 

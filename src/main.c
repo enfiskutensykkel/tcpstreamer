@@ -16,9 +16,14 @@
 #define NUM_2_STR(str) STRINGIFY(str)
 
 
+/* Table of streamers and their corresponding functions */
+static tblent_t *streamer_tbl = NULL;
 
-/* Print program usage */
-static void give_usage(FILE *out, char *prog_name, int streamer_impl);
+/* Streamer parameter lists */
+static struct option **streamer_params = NULL;
+
+/* Current running streamer instance */
+static int streamer_idx = -1;
 
 
 
@@ -27,49 +32,29 @@ extern void receiver(int socket_desc);
 
 
 
-/* Create a table of streamers and their corresponding functions */
-static struct tbl_ent {
-	const char *name;
-	streamer_t streamer;
-	void (*sighndlr)(streamer_t);
-	void (*init)(streamer_t);
-	void (*uninit)(streamer_t);
-} *streamer_tbl = NULL;
-
-
-
-/* Streamer parameter lists */
-static struct option **streamer_params = NULL;
-
-
-
-/* Current running streamer instance */
-static int streamer_idx = -1;
-
-
 
 /* Argument registration for streamers */
-void register_argument(streamer_t streamer, struct option param)
+int register_argument(struct option argument)
 {
 	struct option empty = { 0, 0, 0, 0 };
-	int i, j;
-	
-	for (i = 0; streamers[i].bootstrapper != NULL; ++i) {
-		if (streamer_tbl[i].streamer == streamer)
-			break;
-	}
-	
-	if (streamers[i].bootstrapper != NULL) {
-		for (j = 0; streamer_params[i][j].name != NULL; ++j);
+	int i;
 
-		if ((streamer_params[i] = realloc(streamer_params[i], sizeof(struct option) * (j+2))) == NULL) {
-			perror("realloc");
-			exit(1);
-		}
+	if (streamer_idx == -1)
+		return -1;
+	
+	for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i)
+		if (strcmp(argument.name, streamer_params[streamer_idx][i].name) == 0)
+			return -1;
 
-		memcpy(&streamer_params[i][j], &param, sizeof(struct option));
-		memcpy(&streamer_params[i][j+1], &empty, sizeof(struct option));
+	if ((streamer_params[streamer_idx] = realloc(streamer_params[streamer_idx], sizeof(struct option) * (i+2))) == NULL) {
+		perror("realloc");
+		return -1;
 	}
+
+	memcpy(&streamer_params[streamer_idx][i], &argument, sizeof(struct option));
+	memcpy(&streamer_params[streamer_idx][i+1], &empty, sizeof(struct option));
+
+	return i;
 }
 
 
@@ -85,12 +70,17 @@ static void handle_signal()
 
 
 
+
+
+/* Print program usage */
+static void give_usage(FILE *out, char *prog_name, int streamer_impl);
+
 /* Parse command line arguments and start program */
 int main(int argc, char **argv)
 {
 	int i, 
 		num_streamers,                 // total number of streamers
-		socket_desc;                   // socket descriptor
+		socket_desc = -1;              // socket descriptor
 	char hostname[INET_ADDRSTRLEN],    // the canonical hostname
 		 *port = NUM_2_STR(DEF_PORT),  // port number
 		 *host = NULL,                 // hostname given as argument
@@ -102,14 +92,10 @@ int main(int argc, char **argv)
 	
 
 	/* Initialize streamer table */
-	for (num_streamers = 0; streamers[num_streamers].bootstrapper != NULL; ++num_streamers);
-	if ((streamer_tbl = malloc(sizeof(struct tbl_ent) * num_streamers)) == NULL) {
-		perror("malloc");
+	num_streamers = streamer_tbl_create(&streamer_tbl);
+	if (num_streamers < 0) {
+		perror("streamer_tbl_init");
 		exit(1);
-	}
-	for (i = 0; i < num_streamers; ++i) {
-		streamer_tbl[i].name = streamers[i].name;
-		streamers[i].bootstrapper( &(streamer_tbl[i].streamer), &(streamer_tbl[i].sighndlr), &(streamer_tbl[i].init), &(streamer_tbl[i].uninit) );
 	}
 
 
@@ -129,9 +115,12 @@ int main(int argc, char **argv)
 
 	/* Initialize streamers */
 	for (i = 0; i < num_streamers; ++i) {
-		if (streamer_tbl[i].init != NULL)
+		if (streamer_tbl[i].init != NULL) {
+			streamer_idx = i;
 			streamer_tbl[i].init(streamer_tbl[i].streamer);
+		}
 	}
+	streamer_idx = -1;
 
 
 	/* Parse command line options and arguments (parameters) */
@@ -277,7 +266,7 @@ int main(int argc, char **argv)
 	/* Clean up */
 	close(socket_desc);
 
-	free(streamer_tbl);
+	streamer_tbl_destroy(streamer_tbl);
 
 	for (i = 0; i < num_streamers; ++i) {
 		free(streamer_params[i]);
@@ -315,9 +304,9 @@ static void give_usage(FILE *fp, char *name, int streamer)
 				name, name);
 
 		fprintf(fp, "\nAvailable streamer implementations are:\n  ");
-		for (i = 0, n = 0; streamers[i].bootstrapper != NULL; n += 2 + strlen(streamers[i++].name)) {
+		for (i = 0, n = 0; streamer_tbl[i].streamer != NULL; n += 2 + strlen(streamer_tbl[i++].name)) {
 
-			if (n + 2 + strlen(streamers[i].name) > 80) 
+			if (n + 2 + strlen(streamer_tbl[i].name) > 80) 
 				n = 0;
 
 			if (i > 0 && n == 0)
@@ -325,7 +314,7 @@ static void give_usage(FILE *fp, char *name, int streamer)
 			else if (i > 0)
 				fprintf(fp, ", ");
 
-			fprintf(fp, "%s", streamers[i].name);
+			fprintf(fp, "%s", streamer_tbl[i].name);
 		}
 		fprintf(fp, "\n");
 
@@ -335,7 +324,7 @@ static void give_usage(FILE *fp, char *name, int streamer)
 				"  -t\tRun streamer for <duration> seconds.\n\n"
 				"Where <args> is one of the following:\n  "
 				,
-				name, streamers[streamer].name);
+				name, streamer_tbl[streamer].name);
 
 		for (i = 0, n = 0; streamer_params[streamer][i].name != NULL; n += 4 + strlen(streamer_params[streamer][i++].name)) {
 

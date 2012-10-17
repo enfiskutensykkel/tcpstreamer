@@ -5,6 +5,6 @@
 #include <getopt.h>
 
 /* Register an argument to the streamer entry point. */
-void register_argument(streamer_t streamer, struct option argument);
+int register_argument(struct option argument);
 
 #endif

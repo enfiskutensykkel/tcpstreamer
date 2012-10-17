@@ -49,7 +49,7 @@ extern void __$(1)();
 endef
 
 define arraydecl_tmpl 
-struct streamer streamers[] = { $(foreach fun,$(FUN),{"$(fun)", &__$(fun)},) {0, 0} };
+struct streamer __streamers[] = { $(foreach fun,$(FUN),{"$(fun)", &__$(fun)},) {0, 0} };
 endef
 
 
