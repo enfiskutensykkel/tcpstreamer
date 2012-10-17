@@ -9,6 +9,16 @@
 #include "netutils.h"
 
 
+
+static void reject_connection(int listen_sock)
+{
+	int sock_fd;
+	sock_fd = accept(listen_sock, NULL, NULL);
+	close(sock_fd);
+}
+
+
+
 static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *sock)
 {
 	int recv_sock, status;
@@ -81,7 +91,7 @@ void receiver(int listen_sock)
 			if (ptr == NULL) {
 				if ((conns = malloc(sizeof(struct conn))) == NULL) {
 					perror("malloc");
-					exit(1);
+					reject_connection(listen_sock);
 				}
 
 				ptr = conns;
@@ -91,7 +101,7 @@ void receiver(int listen_sock)
 			} else {
 				if ((ptr->next = malloc(sizeof(struct conn))) == NULL) {
 					perror("malloc");
-					exit(1);
+					reject_connection(listen_sock);
 				}
 
 				ptr->next->prev = ptr;
