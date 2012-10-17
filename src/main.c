@@ -55,20 +55,20 @@ int main(int argc, char **argv)
 #define STRINGIFY(str) #str
 #define NUM_2_STR(str) STRINGIFY(str)
 
-	int i, 
+	int i,	                           // used to iterate stuff
 		num_streamers,                 // total number of streamers
 		socket_desc = -1;              // socket descriptor
 	char hostname[INET_ADDRSTRLEN],    // the canonical hostname
 		 *port = NUM_2_STR(DEF_PORT),  // port number (as string)
 		 *host = NULL,                 // hostname given as argument
-		 *sptr = NULL;
+		 *sptr = NULL;                 // used to verified that a proper number is given to strtoul
 	char const *streamer_args[argc];   // arguments passed on to the streamer
 	unsigned duration = DEF_DUR;       // streamer duration
-	struct option *opts = NULL;
-	struct sockaddr_in addr;
-	pthread_t receiver_thread;
-	pthread_attr_t receiver_attr;
-	void *receiver_params = NULL;
+	struct option *opts = NULL;        // used for giving opts to getopt_long when a streamer is selected
+	struct sockaddr_in addr;           // used just for host pretty print
+	pthread_t receiver_thread;         // receiver thread
+	pthread_attr_t receiver_attr;      // receiver thread attributes
+	void *receiver_params = NULL;      // arguments to the receiver thread
 	
 
 	/* Initialize streamer table */
@@ -215,12 +215,17 @@ int main(int argc, char **argv)
 		*((int*) receiver_params) = socket_desc;
 		*((int**) ((int*) receiver_params+1)) = &streamer_run;
 
-		pthread_attr_init(&receiver_attr);
-		pthread_attr_setdetachstate(&receiver_attr, PTHREAD_CREATE_JOINABLE);
+		if (pthread_attr_init(&receiver_attr) || pthread_attr_setdetachstate(&receiver_attr, PTHREAD_CREATE_JOINABLE)) {
+			perror("pthread_attr");
+			goto cleanup_and_die;
+		}
 
 		/* Start receiver */
 		streamer_run = 1;
-		pthread_create(&receiver_thread, &receiver_attr, receiver, receiver_params);
+		if (pthread_create(&receiver_thread, &receiver_attr, receiver, receiver_params)) {
+			perror("pthread_create");
+			goto cleanup_and_die;
+		}
 
 		/* Clean after receiver */
 		pthread_attr_destroy(&receiver_attr);
@@ -264,7 +269,6 @@ int main(int argc, char **argv)
 
 
 	/* Clean up */
-
 	streamer_tbl_destroy(streamer_tbl);
 
 	for (i = 0; i < num_streamers; ++i) {
