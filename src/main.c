@@ -18,12 +18,12 @@ static tblent_t *streamer_tbl = NULL;
 /* Streamer parameter lists */
 static struct option **streamer_params = NULL;
 
-/* Current running streamer instance */
+/* Current streamer table index */
 static int streamer_idx = -1;
 
 
 
-/* Receiver */
+/* Stream receiver */
 extern void receiver(int socket_desc);
 
 
@@ -31,9 +31,9 @@ extern void receiver(int socket_desc);
 static void handle_signal()
 {
 	if (streamer_idx != -1) {
-		streamer_tbl[streamer_idx].sighndlr(streamer_tbl[streamer_idx].streamer);
+		streamer_tbl[streamer_idx].sighndlr(streamer_tbl[streamer_idx].streamer); 
 	} else
-		receiver(-1);
+		receiver(-1); 
 }
 
 
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 				give_usage(stderr, argv[0], streamer_idx);
 				goto cleanup_and_die;
 
-			case 'h':
+			case 'h': // show help
 				help = 1;
 				break;
 
