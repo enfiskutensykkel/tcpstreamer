@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <pthread.h>
 #include "netutils.h"
 #include "table.h"
 #include "bootstrap.h"
@@ -18,13 +19,16 @@ static tblent_t *streamer_tbl = NULL;
 /* Streamer parameter lists */
 static struct option **streamer_params = NULL;
 
-/* Current running streamer instance */
+/* Current streamer table index */
 static int streamer_idx = -1;
+
+/* Are we running? */
+static int streamer_run = 0;
 
 
 
 /* Receiver */
-extern void receiver(int socket_desc);
+extern void* receiver(void *argv);
 
 
 /* Signal handler to catch user interruption */
@@ -33,7 +37,7 @@ static void handle_signal()
 	if (streamer_idx != -1) {
 		streamer_tbl[streamer_idx].sighndlr(streamer_tbl[streamer_idx].streamer);
 	} else
-		receiver(-1);
+		streamer_run = 0;
 }
 
 
@@ -61,6 +65,9 @@ int main(int argc, char **argv)
 	unsigned duration = DEF_DUR;       // streamer duration
 	struct option *opts = NULL;
 	struct sockaddr_in addr;
+	pthread_t receiver_thread;
+	pthread_attr_t receiver_attr;
+	void *receiver_params = NULL;
 	
 
 	/* Initialize streamer table */
@@ -199,8 +206,26 @@ int main(int argc, char **argv)
 		}
 		fprintf(stdout, "Listening to port %s\n", port);
 
+		/* Set up arguments */
+		if ((receiver_params = malloc(sizeof(int) + sizeof(int*))) == NULL) {
+			perror("malloc");
+			goto cleanup_and_die;
+		}
+		*((int*) receiver_params) = socket_desc;
+		*((int**) ((int*) receiver_params+1)) = &streamer_run;
+
+		pthread_attr_init(&receiver_attr);
+		pthread_attr_setdetachstate(&receiver_attr, PTHREAD_CREATE_JOINABLE);
+
 		/* Start receiver */
-		receiver(socket_desc);
+		streamer_run = 1;
+		pthread_create(&receiver_thread, &receiver_attr, receiver, receiver_params);
+
+		/* Clean after receiver */
+		pthread_attr_destroy(&receiver_attr);
+		pthread_join(receiver_thread, NULL);
+		free(receiver_params);
+		close(socket_desc);
 
 	} else if (argc - optind > 0) {
 		
@@ -221,6 +246,8 @@ int main(int argc, char **argv)
 			goto cleanup_and_die;
 		}
 
+		close(socket_desc);
+
 	} else {
 		fprintf(stderr, "Streamer '%s' selected, but no host is given\n", streamer_tbl[streamer_idx].name);
 		give_usage(stderr, argv[0], streamer_idx);
@@ -236,7 +263,6 @@ int main(int argc, char **argv)
 
 
 	/* Clean up */
-	close(socket_desc);
 
 	streamer_tbl_destroy(streamer_tbl);
 
@@ -249,6 +275,7 @@ int main(int argc, char **argv)
 
 
 cleanup_and_die:
+	free(receiver_params);
 	if (socket_desc >= 0)
 		close(socket_desc);
 	free(streamer_tbl);
