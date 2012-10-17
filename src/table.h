@@ -1,5 +1,5 @@
-#ifndef __AUTOGEN__
-#define __AUTOGEN__
+#ifndef __STREAMER_TBL__
+#define __STREAMER_TBL__
 
 #include "streamer.h"
 
