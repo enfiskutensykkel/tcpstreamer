@@ -42,7 +42,7 @@ static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *soc
 
 
 
-void receiver(int listen_sock)
+static void* receiver(int listen_sock)
 {
 	static int run = 1;
 
@@ -153,7 +153,7 @@ void receiver(int listen_sock)
 					if (ptr->next != NULL)
 						ptr->next->prev = ptr->prev;
 
-					if (ptr == list) {
+					if (ptr->prev == NULL) {
 						tmp = list;
 						list = list->next;
 						free(tmp);
