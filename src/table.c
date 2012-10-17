@@ -1,5 +1,5 @@
 #include "streamer.h"
-#include "autogen.h"
+#include "table.h"
 #include <stdlib.h>
 #include <string.h>
 

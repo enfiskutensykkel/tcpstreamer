@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include "netutils.h"
-#include "autogen.h"
+#include "table.h"
 #include "bootstrap.h"
 
 
