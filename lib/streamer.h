@@ -9,8 +9,8 @@ typedef enum { RUN, STOP } state_t;
 
 /* Streamer instance signature */
 typedef int (*streamer_t)(
-		int socket_descriptor,
-		cond_t const *condition, 
+		int connection,
+		state_t const *condition, 
 		char const **arguments
 		);
 

@@ -15,16 +15,16 @@ typedef struct {
 
 
 /* Bootstrap all streamers and create streamer table */
-int streamer_tbl_create(tblent_t** table);
+int streamer_tbl_create(tblent_t** tbl);
 
 
 
 /* Destroy the streamer table */
-void streamer_tbl_destroy(tblent_t* table);
+void streamer_tbl_destroy(tblent_t* tbl);
 
 
 
 /* Run streamer intance */
-int streamer(tblent_t* table_entry, unsigned duration, int connection, state_t* condition, char const **arguments);
+int streamer(tblent_t* tbl_entry, unsigned dur, int conn, state_t* cond, char const **args);
 
 #endif

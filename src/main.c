@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	if (streamer_idx == -1) {
 
 		fprintf(stdout, "No streamer selected, starting receiver.\n");
-		if ((socket_desc = create_sock(NULL, port)) < 0) {
+		if ((socket_desc = create_socket(NULL, port)) < 0) {
 			fprintf(stderr, "Unable to bind to port %s\n", port);
 			goto cleanup_and_die;
 		}
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
 		
 		host = argv[optind];
 		fprintf(stdout, "Streamer '%s' selected.\n", streamer_tbl[streamer_idx].name);
-		if ((socket_desc = create_sock(host, port)) < 0) {
+		if ((socket_desc = create_socket(host, port)) < 0) {
 			fprintf(stderr, "Unable to connect to '%s'\n", host);
 			goto cleanup_and_die;
 		}
