@@ -110,7 +110,7 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 	pthread_attr_t attr;
 	struct thread_arg *th_arg;
 	struct timespec timeout = {0, 100 * 1000 * 1000};
-	unsigned utime;
+	unsigned utime = dur * 1000;
 
 	/* Initialize thread arguments */
 	if ((th_arg = malloc(sizeof(struct thread_arg))) == NULL)
@@ -135,7 +135,6 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 
 
 	/* Count down duration down */
-	utime = dur * 1000;
 	while (*cond == RUN) {
 		
 		if (pthread_mutex_trylock(&th_arg->state_mutex) == 0) {
