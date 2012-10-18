@@ -1,11 +1,11 @@
-#include "streamer.h"
-#include "streamerctl.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
 #include <assert.h>
+#include "streamerctl.h"
+#include "streamer.h"
 
 
 /* Handle the auto-generated code */

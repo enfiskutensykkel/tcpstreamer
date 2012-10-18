@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
-#include "netutils.h"
+#include "utils.h"
 #include "streamerctl.h"
 #include "bootstrap.h"
 

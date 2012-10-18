@@ -1,6 +1,6 @@
 /* XXX Please note that these functions only work with IPv4 at the moment XXX */
-#ifndef __NETUTIL__
-#define __NETUTIL__
+#ifndef __UTILS__
+#define __UTILS__
 
 #include <arpa/inet.h>
 #include <pcap.h>
