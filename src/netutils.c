@@ -56,7 +56,7 @@ int lookup_addr(int sock_desc, struct sockaddr_in *local, struct sockaddr_in *re
  * If hostname is NULL, try to bind to port and listen.
  * Otherwise, try to connect to hostname.
  */
-int create_sock(const char *hostname, const char *port)
+int create_socket(const char *hostname, const char *port)
 {
 	int sock_desc = -1, status;
 	struct addrinfo hints, *ptr, *host;
@@ -69,7 +69,7 @@ int create_sock(const char *hostname, const char *port)
 
 	/* Get host information */
 	if ((status = getaddrinfo(hostname, port, &hints, &host)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+		//fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
 		return -2;
 	}
 
@@ -102,7 +102,7 @@ int create_sock(const char *hostname, const char *port)
 
 		if (listen(sock_desc, 10) != 0) {
 			perror("listen");
-			return -2;
+			return -3;
 		}
 
 	} else {
@@ -124,4 +124,27 @@ int create_sock(const char *hostname, const char *port)
 	}
 
 	return sock_desc;
+}
+
+
+
+/* Create a custom pcap capture filter handle and return it */
+int create_handle(pcap_t** handle, int sock, int timeout)
+{
+	return 0;
+}
+
+
+
+/* Process a packet captured by the pcap capture filter */
+int parse_segment(pcap_t *handle, pkt_t *packet)
+{
+	return 0;
+}
+
+
+
+/* Free up any resources associated with the pcap capture filter */
+void destroy_handle(pcap_t *handle)
+{
 }
