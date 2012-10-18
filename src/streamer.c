@@ -27,7 +27,7 @@ struct thread_arg
 	pthread_mutex_t state_mutex;
 	pthread_cond_t stopped;
 	int connection;
-	cond_t const *condition;
+	state_t const *condition;
 	char const **arguments;
 	int *status;
 };
@@ -104,7 +104,7 @@ static void* run_streamer(struct thread_arg *arg)
 
 
 /* Start streamer thread */
-int streamer(tblent_t *entry, unsigned dur, int conn, cond_t *cond, char const **args)
+int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const **args)
 {
 	pthread_t thread;
 	pthread_attr_t attr;

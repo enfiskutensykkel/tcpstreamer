@@ -23,14 +23,14 @@ static struct option **streamer_params = NULL;
 static int streamer_idx = -1;
 
 /* Are we running? */
-static cond_t streamer_run = STOP;
+static state_t streamer_run = STOP;
 
 
 
 
 
 /* Run receiver */
-extern void receiver(int sock_desc, cond_t *cond);
+extern void receiver(int sock_desc, state_t *cond);
 
 
 /* Signal handler to catch user interruption */

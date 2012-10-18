@@ -44,7 +44,7 @@ static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *soc
 
 
 
-void receiver(int listen_sock, cond_t const *run)
+void receiver(int listen_sock, state_t const *run)
 {
 	struct conn {
 		struct sockaddr_in addr; // address of the remote side of the connection

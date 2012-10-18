@@ -25,6 +25,6 @@ void streamer_tbl_destroy(tblent_t* table);
 
 
 /* Run streamer intance */
-int streamer(tblent_t* table_entry, unsigned duration, int connection, cond_t* condition, char const **arguments);
+int streamer(tblent_t* table_entry, unsigned duration, int connection, state_t* condition, char const **arguments);
 
 #endif

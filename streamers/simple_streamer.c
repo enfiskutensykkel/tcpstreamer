@@ -9,7 +9,7 @@
 #include <assert.h>
 
 
-static int simple_streamer(int sock, const cond_t *cond, const char **args)
+static int simple_streamer(int sock, const state_t *cond, const char **args)
 {
 	int bufsz = 1460;
 	FILE *fp = NULL;
