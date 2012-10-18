@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "utils.h"
+#include "capture.h"
+#include "pcap.h"
 
 
 

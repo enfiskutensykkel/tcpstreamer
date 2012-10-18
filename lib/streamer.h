@@ -1,18 +1,13 @@
 #ifndef __STREAMER__
 #define __STREAMER__
 
-
 #include <sys/types.h>
 
 
 typedef enum { RUN, STOP } state_t;
 
 /* Streamer instance signature */
-typedef int (*streamer_t)(
-		int connection,
-		state_t const *condition, 
-		char const **arguments
-		);
+typedef int (*streamer_t)(int, state_t*, char const**);
 
 
 /* Streamer declaration macro */

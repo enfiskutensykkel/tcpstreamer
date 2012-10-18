@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "streamerctl.h"
 #include "bootstrap.h"
+#include "capture.h"
 
 
 
@@ -284,6 +285,14 @@ int register_argument(struct option argument)
 	memcpy(&streamer_params[streamer_idx][i+1], &empty, sizeof(struct option));
 
 	return i;
+}
+
+
+
+/* Packet capture registration for streamers */
+int register_callback(callback_t parser)
+{
+	return -1;
 }
 
 
