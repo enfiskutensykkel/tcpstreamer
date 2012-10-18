@@ -6,9 +6,9 @@
 #include <signal.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <pthread.h>
+#include <assert.h>
 #include "netutils.h"
-#include "table.h"
+#include "streamerctl.h"
 #include "bootstrap.h"
 
 
@@ -23,25 +23,20 @@ static struct option **streamer_params = NULL;
 static int streamer_idx = -1;
 
 /* Are we running? */
-static int streamer_run = 0;
+static cond_t streamer_run = STOP;
+
+
 
 
 
 /* Run receiver */
-extern void receiver(int sock_desc, int *cond);
-
-
-/* Run streamer */
-static void run_streamer(void);
+extern void receiver(int sock_desc, cond_t *cond);
 
 
 /* Signal handler to catch user interruption */
 static void handle_signal()
 {
-	if (streamer_idx != -1) {
-		streamer_tbl[streamer_idx].sighndlr(streamer_tbl[streamer_idx].streamer); 
-	} else
-		streamer_run = 0;
+	streamer_run = STOP;
 }
 
 
@@ -58,28 +53,22 @@ int main(int argc, char **argv)
 #define STRINGIFY(str) #str
 #define NUM_2_STR(str) STRINGIFY(str)
 
-	int i,	                           // used to iterate stuff
+	int i,                             // used to iterate stuff
 		num_streamers,                 // total number of streamers
 		socket_desc = -1;              // socket descriptor
 	char hostname[INET_ADDRSTRLEN],    // the canonical hostname
 		 *port = NUM_2_STR(DEF_PORT),  // port number (as string)
 		 *host = NULL,                 // hostname given as argument
 		 *sptr = NULL;                 // used to verified that a proper number is given to strtoul
-	char const *streamer_args[argc];   // arguments passed on to the streamer
+	char const **streamer_args = NULL; // arguments passed on to the streamer
 	unsigned duration = DEF_DUR;       // streamer duration
 	struct option *opts = NULL;        // used for giving opts to getopt_long when a streamer is selected
 	struct sockaddr_in addr;           // used just for host pretty print
-//	pthread_t thread;                  // executor thread
-//	pthread_attr_t thread_attr;        // thread attributes
-//	void *thread_params = NULL;        // arguments to the thread
 	
 
 	/* Initialize streamer table */
 	num_streamers = streamer_tbl_create(&streamer_tbl);
-	if (num_streamers < 0) {
-		perror("streamer_tbl_init");
-		exit(1);
-	}
+	assert(num_streamers >= 0);
 
 
 	/* Set up the argument registration */
@@ -173,6 +162,9 @@ int main(int argc, char **argv)
 
 				streamer_idx = i;
 				opts = streamer_params[streamer_idx];
+
+				for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i);
+				streamer_args = malloc(sizeof(char**) * i);
 			
 				for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i)
 					streamer_args[i] = NULL;
@@ -193,14 +185,11 @@ int main(int argc, char **argv)
 
 
 	/* Create signal handler to deal with interruption */
-	if (signal(SIGINT, (void (*)(int)) &handle_signal) == SIG_ERR) {
-		perror("signal");
-		goto cleanup_and_die;
-	}
+	assert(signal(SIGINT, (void (*)(int)) &handle_signal) != SIG_ERR);
 
 
 	/* Create socket descriptor and start instance */
-	socket_desc = -1;
+	socket_desc = -1; streamer_run = RUN;
 	if (streamer_idx == -1) {
 
 		fprintf(stdout, "No streamer selected, starting receiver.\n");
@@ -210,31 +199,8 @@ int main(int argc, char **argv)
 		}
 		fprintf(stdout, "Listening to port %s\n", port);
 
-		/* Set up arguments */
-//		if ((thread_params = malloc(sizeof(int) + sizeof(int*))) == NULL) {
-//			perror("malloc");
-//			goto cleanup_and_die;
-//		}
-//		*((int*) thread_params) = socket_desc;
-//		*((int**) ((int*) thread_params+1)) = &streamer_run;
-
-//		if (pthread_attr_init(&thread_attr) || pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_JOINABLE)) {
-//			perror("pthread_attr");
-//			goto cleanup_and_die;
-//		}
-
-		/* Start receiver */
-//		streamer_run = 1;
-//		if (pthread_create(&thread, &thread_attr, receiver, thread_params)) {
-//			perror("pthread_create");
-//			goto cleanup_and_die;
-//		}
-//
-//		/* Clean after receiver */
-//		pthread_attr_destroy(&thread_attr);
-//		pthread_join(thread, NULL);
-//		free(thread_params);
-		close(socket_desc);
+		/* Start receiver instance */
+		receiver(socket_desc, &streamer_run);
 
 	} else if (argc - optind > 0) {
 		
@@ -251,11 +217,8 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Successfully connected to %s\n", hostname);
 
 		/* Start streamer */
-		if (streamer_tbl[streamer_idx].streamer(socket_desc, streamer_args) < 0) {
-			goto cleanup_and_die;
-		}
+		streamer(&streamer_tbl[streamer_idx], duration, socket_desc, &streamer_run, streamer_args);
 
-		close(socket_desc);
 
 	} else {
 		fprintf(stderr, "Missing host argument\n");
@@ -272,6 +235,8 @@ int main(int argc, char **argv)
 
 
 	/* Clean up */
+	free(streamer_args);
+	close(socket_desc);
 	streamer_tbl_destroy(streamer_tbl);
 
 	for (i = 0; i < num_streamers; ++i) {
@@ -283,7 +248,8 @@ int main(int argc, char **argv)
 
 
 cleanup_and_die:
-//	free(thread_params);
+	free(streamer_args);
+
 	if (socket_desc >= 0)
 		close(socket_desc);
 	free(streamer_tbl);

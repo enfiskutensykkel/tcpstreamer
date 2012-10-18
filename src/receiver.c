@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include "netutils.h"
+#include "streamer.h"
 
 
 
@@ -43,7 +44,7 @@ static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *soc
 
 
 
-void receiver(int listen_sock, int *run)
+void receiver(int listen_sock, cond_t const *run)
 {
 	struct conn {
 		struct sockaddr_in addr; // address of the remote side of the connection
@@ -71,7 +72,7 @@ void receiver(int listen_sock, int *run)
 	FD_SET(listen_sock, &socks);
 	hi_sock = listen_sock;
 	
-	while (*run == 1) {
+	while (*run == RUN) {
 
 		active = socks;
 		if ((num_active = select(hi_sock + 1, &active, NULL, NULL, &wait)) == -1) 

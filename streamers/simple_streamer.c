@@ -9,13 +9,12 @@
 #include <assert.h>
 
 
-static int run = 1;
-
-static ssize_t simple_streamer(int sock, const char **args)
+static int simple_streamer(int sock, const cond_t *cond, const char **args)
 {
 	int bufsz = 1460;
 	FILE *fp = NULL;
 	char *buf = NULL;
+	ssize_t len;
 
 
 	/* Parse arguments */
@@ -36,15 +35,15 @@ static ssize_t simple_streamer(int sock, const char **args)
 	memset(buf, 0, sizeof(char) * bufsz);
 
 	/* Run streamer */
-	while (run && (fp == NULL || (!feof(fp) && !ferror(fp)))) {
+	while (*cond == RUN && (fp == NULL || (!feof(fp) && !ferror(fp)))) {
 
 		// read from file
 		if (fp != NULL) {
-			fread(buf, sizeof(char), bufsz, fp);
+			len = fread(buf, sizeof(char), bufsz, fp);
 		}
 
 		// send to receiver
-		send(sock, buf, sizeof(char) * bufsz, 0);
+		send(sock, buf, len, 0);
 	}
 
 	free(buf);
@@ -54,13 +53,6 @@ static ssize_t simple_streamer(int sock, const char **args)
 	return 0;
 }
 
-
-
-static void stop_streamer(streamer_t instance)
-{
-	assert(instance == &simple_streamer);
-	run = 0;
-}
 
 
 
@@ -79,4 +71,4 @@ static void bootstrap(streamer_t entry_point)
 }
 
 
-STREAMER(simple_streamer, stop_streamer, bootstrap)
+STREAMER(simple_streamer, bootstrap, NULL)
