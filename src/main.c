@@ -331,13 +331,14 @@ static void give_usage(FILE *fp, char *name, int streamer)
 		fprintf(fp, "\n");
 
 	} else {
-		fprintf(fp, "Usage: %s " B "-s %s" R " " U "arguments" R "... " U "host" R "\n"
-				"\nArguments:\n"
-				,
+		fprintf(fp, "Usage: %s " B "-s %s" R " " U "arguments" R "... " U "host" R "\n",
 				name, streamer_tbl[streamer].name);
 
-		for (i = 0; streamer_params[streamer][i].name != NULL; ++i) {
-			fprintf(fp, "  --%s%s\n", streamer_params[streamer][i].name, (streamer_params[streamer][i].has_arg > 0 ? "=" U "value" R : ""));
+		if (streamer_params[streamer][0].name != NULL) {
+			fprintf(fp, "\nArguments:\n");
+			for (i = 0; streamer_params[streamer][i].name != NULL; ++i) {
+				fprintf(fp, "  --%s%s\n", streamer_params[streamer][i].name, (streamer_params[streamer][i].has_arg > 0 ? "=" U "value" R : ""));
+			}
 		}
 	}
 }
