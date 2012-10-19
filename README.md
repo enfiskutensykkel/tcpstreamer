@@ -255,7 +255,7 @@ invokation, it will be set to ``NULL`` when invoking the entry point function.
 #include <string.h>
 #include <assert.h>
 
-static int simple_streamer(int conn, const state_t *run, const char **args)
+static int file_streamer(int conn, const state_t *run, const char **args)
 {
 	int bufsz = 1460;
 	FILE *fp = NULL;
