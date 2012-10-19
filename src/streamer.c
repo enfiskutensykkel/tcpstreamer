@@ -1,11 +1,11 @@
-#include "streamer.h"
-#include "streamerctl.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
 #include <assert.h>
+#include "streamerctl.h"
+#include "streamer.h"
 
 
 /* Handle the auto-generated code */
@@ -54,12 +54,12 @@ int streamer_tbl_create(tblent_t **tbl)
 
 	/* Bootstrap all streamers */
 	for (i = 0; i < n; ++i) {
-		(*tbl[i]).name = __streamers[i].name;
-		__streamers[i].callback( &((*tbl[i]).streamer), &((*tbl[i]).init), &((*tbl[i]).uninit) );
+		(*tbl+i)->name = __streamers[i].name;
+		__streamers[i].callback(&(*tbl+i)->streamer, &(*tbl+i)->init, &(*tbl+i)->uninit);
 	}
 
 	/* Set the last table entry to be zero */
-	memset((*tbl)+n, 0, sizeof(tblent_t));
+	memset(*tbl+n, 0, sizeof(tblent_t));
 
 	/* Return numbers of table entries */
 	return n;

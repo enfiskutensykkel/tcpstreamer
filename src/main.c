@@ -7,9 +7,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
-#include "netutils.h"
+#include "utils.h"
 #include "streamerctl.h"
 #include "bootstrap.h"
+#include "capture.h"
 
 
 
@@ -288,6 +289,14 @@ int register_argument(struct option argument)
 
 
 
+/* Packet capture registration for streamers */
+int register_callback(callback_t parser)
+{
+	return -1;
+}
+
+
+
 /* Print program usage */
 static void give_usage(FILE *fp, char *name, int streamer)
 {
@@ -322,13 +331,14 @@ static void give_usage(FILE *fp, char *name, int streamer)
 		fprintf(fp, "\n");
 
 	} else {
-		fprintf(fp, "Usage: %s " B "-s %s" R " " U "arguments" R "... " U "host" R "\n"
-				"\nArguments:\n"
-				,
+		fprintf(fp, "Usage: %s " B "-s %s" R " " U "arguments" R "... " U "host" R "\n",
 				name, streamer_tbl[streamer].name);
 
-		for (i = 0; streamer_params[streamer][i].name != NULL; ++i) {
-			fprintf(fp, "  --%s%s\n", streamer_params[streamer][i].name, (streamer_params[streamer][i].has_arg > 0 ? "=" U "value" R : ""));
+		if (streamer_params[streamer][0].name != NULL) {
+			fprintf(fp, "\nArguments:\n");
+			for (i = 0; streamer_params[streamer][i].name != NULL; ++i) {
+				fprintf(fp, "  --%s%s\n", streamer_params[streamer][i].name, (streamer_params[streamer][i].has_arg > 0 ? "=" U "value" R : ""));
+			}
 		}
 	}
 }

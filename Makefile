@@ -14,7 +14,7 @@ SRC_DIR=src
 EXT_DIR=streamers
 
 # Custom defines and constants
-INCLUDE=lib/defs.h
+INCLUDE=lib/defines.h
 DEFINES=ANSI
 
 

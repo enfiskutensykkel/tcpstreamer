@@ -1,12 +1,59 @@
-#include "netutils.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pcap.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
+#include "utils.h"
+#include "capture.h"
+#include "pcap.h"
+
+
+
+/* Look up device associated to the socket descriptor */
+int lookup_dev(int sock_desc, char *dev, int len)
+{
+	char errstr[PCAP_ERRBUF_SIZE];
+	pcap_if_t *all_devs, *ptr;
+	pcap_addr_t *list;
+	struct sockaddr_in addr;
+
+	/* look up address */
+	if (lookup_addr(sock_desc, &addr, NULL) != 0)
+		return -2;
+
+	/* get all devices */
+	if (pcap_findalldevs(&all_devs, errstr)) {
+		fprintf(stderr, "pcap_findalldevs: %s\n", errstr);
+		return -2;
+	}
+
+	/* match device to address */
+	for (ptr = all_devs, list = NULL; ptr != NULL; ptr = ptr->next) {
+		for (list = ptr->addresses; list != NULL; list = list->next) {
+
+			if (list->addr->sa_family == addr.sin_family) {
+
+				if (addr.sin_addr.s_addr == ((struct sockaddr_in*) list->addr)->sin_addr.s_addr) {
+					// match found
+					strncpy(dev, ptr->name, len);
+					dev[len-1] = '\0';
+					pcap_freealldevs(all_devs);
+					return 0;
+				}
+
+			}
+
+		}
+	}
+
+	/* no match found */
+	pcap_freealldevs(all_devs);
+	return -1;
+}
 
 
 
