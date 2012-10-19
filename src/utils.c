@@ -175,9 +175,51 @@ int create_socket(const char *hostname, const char *port)
 
 
 
+/* Create and compile a filter string for the pcap capture filter handle.
+ * Will set up a filter that only captures packets belonging to the the
+ * stream indicated by socket.
+ *
+ * Returns 0 on success, and a negative value on failure.
+ */
+static int compile_filter(const char *dev, pcap_t *handle, int sock, struct bpf_program *filter)
+{
+	struct sockaddr_in loc_addr, rem_addr;
+	char loc_host[INET_ADDRSTRLEN],
+		 rem_host[INET_ADDRSTRLEN];
+
+	return 0;
+}
+
+
+
 /* Create a custom pcap capture filter handle and return it */
 int create_handle(pcap_t** handle, int sock, int timeout)
 {
+	char errstr[PCAP_ERRBUF_SIZE];
+	char dev[15];
+	struct bpf_program filter;
+
+	/* look up device */
+	if (lookup_dev(sock, dev, sizeof(dev)))
+		return -1;
+
+	/* create a pcap capture handle */
+	if ((*handle = pcap_open_live(dev, 0xffff, 1, timeout, errstr)) == NULL) {
+		fprintf(stderr, "pcap_open_live: %s\n", errstr);
+		return -2;
+	}
+
+	/* create and apply filter string */
+	if (compile_filter(dev, *handle, sock, &filter))
+		return -3;
+
+	if (pcap_setfilter(*handle, &filter) == -1) {
+		pcap_perror(*handle, "pcap_setfilter");
+		pcap_freecode(&filter);
+		return -4;
+	}
+
+	pcap_freecode(&filter);
 	return 0;
 }
 
