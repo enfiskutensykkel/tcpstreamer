@@ -1,4 +1,7 @@
-/* XXX Please note that these functions only work with IPv4 at the moment XXX */
+/* XXX Please note that these functions only work with IPv4 at the moment.
+ *     Also note that on most systems, these will require running the program
+ *     with superuser privileges to work.
+ */
 #ifndef __PCAP__
 #define __PCAP__
 
