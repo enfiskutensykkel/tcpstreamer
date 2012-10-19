@@ -7,7 +7,7 @@
 typedef enum { RUN, STOP } state_t;
 
 /* Streamer instance signature */
-typedef int (*streamer_t)(int, state_t*, char const**);
+typedef int (*streamer_t)(int, state_t const*, char const**);
 
 
 /* Streamer declaration macro */

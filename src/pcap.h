@@ -7,8 +7,6 @@
 
 
 
-
-
 /* Create a segment sniffer filter handle
  *
  * Create a byte stream segment capture filter that captures segments 
