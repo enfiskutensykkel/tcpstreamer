@@ -4,7 +4,7 @@
 #include <sys/types.h>
 
 
-typedef enum { RUN, STOP } state_t;
+typedef enum { STOP = 0, RUN = 1 } state_t;
 
 /* Streamer instance signature */
 typedef int (*streamer_t)(int, state_t const*, char const**);
