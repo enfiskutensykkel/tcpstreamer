@@ -38,14 +38,15 @@ To start a receiver instance, simply invoke the program with:
 
 To start a streamer instance, invoke the program with:
 
-		./tcpstreamer -s implementation hostname
+		./tcpstreamer -s streamer hostname
 
-Where implementation is the name of an available streamer implementation, and 
-hostname is either the hostname or IPv4 address of the host running a receiver
-instance. The default port is 50000, if you want to change the port the program
-listens to / streams to, use the `-p` option.
+Where `streamer` is the name of an available streamer implementation, and 
+`hostname` is either the hostname or IPv4 address of the host running a 
+receiver instance. The default port is 50000, if you want to change the port
+the program listens to / streams to, use the `-p` option.
+You can also use the following command for more program invokation options:
 
-		./tcpstreamer -h [-s implementation]
+		./tcpstreamer -h [-s streamer]
 
 
 
@@ -112,7 +113,17 @@ much like creating plug-ins for a program.
 ### Creating a streamer ###
 
 All streamer source code must be put in the `streamers` directory in order for
-the build script to recognize it as a streamer implementation.
+the build script to recognize it as a streamer implementation. All streamers
+must have an entry point declared with the following signature:
+
+```C
+int streamer_entry_point(int connection, const state_t *run_state, const char **arguments);
+```
+
+Now, lets explain the arguments: The first argument, `connection`, is the
+connection socket descriptor, and it is ready to use when the entry point is
+invoked. The next argument, the ``run_state`` pointer
+
 
 TODO explain the entry point and signal handler
 TODO mention no namespaces and therefore must use static
