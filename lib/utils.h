@@ -35,6 +35,8 @@ int lookup_addr(int socket_desc, struct sockaddr_in* local_addr, struct sockaddr
  * Load devname (with maximum len characters) with the device name of the 
  * interface associated with the socket descriptor.
  *
+ * XXX Please note that on most systems, this requires superuser privileges!
+ *
  * Returns 0 and loads devname on success, or a negative value on failure.
  */
 int lookup_dev(int socket_desc, char* devname, int len);
