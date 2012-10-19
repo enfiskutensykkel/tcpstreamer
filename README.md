@@ -239,7 +239,7 @@ static void bootstrapper(streamer_t streamer)
 }
 ```
 
-Note here that the order of registration is also the order that the arguments
+Please note that the order of registration is also the order that the arguments
 is passed on to the entry point. If an argument is not given on program
 invokation, it will be set to ``NULL`` when invoking the entry point function.
 
@@ -319,4 +319,3 @@ static void bootstrap(streamer_t entry_point)
 
 STREAMER(simple_streamer, bootstrap, NULL)
 ```
-Note that here the entry point can return before the state is ``STOP``.
