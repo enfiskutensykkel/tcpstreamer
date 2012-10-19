@@ -11,19 +11,14 @@ typedef int (*streamer_t)(int, state_t const*, char const**);
 
 
 /* Streamer declaration macro */
-#define __STREAMER(entry_point, ...)\
+#define STREAMER(entry_point, initialize, uninitialize)\
 	void __##entry_point (streamer_t* entry,\
 			void(**init)(streamer_t),\
 			void(**uninit)(streamer_t)\
 			){\
-		void (*func_list[])(streamer_t) = { __VA_ARGS__ };\
 		*entry= entry_point ;\
-		*init=*uninit=(void(*)(streamer_t))0;\
-		switch(sizeof(func_list)/sizeof(void(*)(streamer_t))){\
-			case 2:*uninit=func_list[1];\
-			case 1:*init=func_list[0];\
-		}}
-
-#define STREAMER(...) __STREAMER( __VA_ARGS__ )
+		*init= initialize ;\
+		*uninit= uninitialize ;\
+		}
 
 #endif
