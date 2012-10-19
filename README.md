@@ -294,7 +294,7 @@ static int simple_streamer(int conn, const state_t *run, const char **args)
 		}
 
 		/* send to receiver */
-		send(cond, buf, len, 0);
+		send(conn, buf, len, 0);
 	}
 
 	free(buf);
