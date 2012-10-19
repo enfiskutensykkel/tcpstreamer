@@ -204,41 +204,6 @@ int register_argument(struct option parameter)
 The register function will return the number of arguments previously
 registered.
 
-```C
-#include "streamer.h"
-#include "bootstrap.h" // NB!
-#include <getopt.h>
-#include <stdio.h>
-
-static int entry_point(int c, const state_t *s, const char **args)
-{
-	if (args[0] != NULL)
-		printf("string1: %s\n", args[0]);
-	else
-		puts("string1 was not given");
-	
-	if (args[1] != NULL)
-		printf("string2: %s\n", args[1]);
-	else
-		puts("string2 was not given");
-
-	return 0;
-}
-
-static void bootstrapper(streamer_t streamer)
-{
-	struct option opts[] = {
-		{"string1", 1, 0, 0},
-		{"string2", 2, 0, 0}
-	};
-
-	if (streamer == &entry_point) {
-		register_argument(opts[0]);
-		register_argument(opts[1]);
-	}
-}
-```
-
 Please note that the order of registration is also the order that the arguments
 is passed on to the entry point. If an argument is not given on program
 invokation, it will be set to ``NULL`` when invoking the entry point function.
@@ -255,6 +220,7 @@ invokation, it will be set to ``NULL`` when invoking the entry point function.
 #include <string.h>
 #include <assert.h>
 
+/* Stream a file given to the program as an argument using --file=filename */
 static int file_streamer(int conn, const state_t *run, const char **args)
 {
 	int bufsz = 1460;
@@ -304,6 +270,7 @@ static int file_streamer(int conn, const state_t *run, const char **args)
 	return 0;
 }
 
+/* Register arguments for the file streamer */
 static void bootstrap(streamer_t entry_point)
 {
 	struct option streamer_args[] = {
@@ -311,7 +278,7 @@ static void bootstrap(streamer_t entry_point)
 		{"bufsz", 1, 0, 0},
 	};
 
-	assert(entry_point == &simple_streamer);
+	assert(entry_point == &file_streamer);
 	register_argument(streamer_args[0]);
 	register_argument(streamer_args[1]);
 }
