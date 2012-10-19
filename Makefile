@@ -1,5 +1,5 @@
 #Project name
-PROJECT=streamer
+PROJECT=tcpstreamer
 
 # Temporary directory to store object files
 TMP_DIR=build

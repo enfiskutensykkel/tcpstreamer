@@ -1,5 +1,5 @@
-streamer
-========
+tcpstreamer
+===========
 An utility program to set up TCP streams with the characteristics similar to 
 those of streams created by real-time and interactive applications,
 and to see how these streams behave in competition with both each other and
