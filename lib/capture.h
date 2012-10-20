@@ -9,16 +9,16 @@
  * Describes properties of a byte stream segment captured by the filter.
  */
 typedef struct {
-	struct sockaddr_in dst;
-	struct sockaddr_in src;
-	unsigned seq;
-	unsigned ack;
-	unsigned len;
-	void const* payload;
+	struct timeval ts;       // timestamp of when segment was caught in filter
+	struct sockaddr_in dst;  // destination address and port
+	struct sockaddr_in src;  // source address and port
+	unsigned seq;            // segment sequence number
+	unsigned ack;            // segment acknowledgement number
+	unsigned len;            // payload length
+	void const* payload;     // pointer to payload data
 } pkt_t;
 
-typedef void (*callback_t)(struct timeval, pkt_t);
 
-int register_callback(callback_t parser_func);
+// TODO function signatures
 
 #endif

@@ -8,6 +8,10 @@
 #include "capture.h"
 #include <pcap.h>
 
+#ifndef ETH_FRAME_LEN
+#define ETH_FRAME_LEN 14
+#endif
+
 
 
 /* Create a segment sniffer filter handle

@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "capture.h"
 #include "pcap.h"
+#include "debug.h"
 
 
 
@@ -27,7 +28,7 @@ int lookup_dev(int sock_desc, char *dev, int len)
 
 	/* get all devices */
 	if (pcap_findalldevs(&all_devs, errstr)) {
-		fprintf(stderr, "pcap_findalldevs: %s\n", errstr);
+		dbgerr(errstr);
 		return -2;
 	}
 
@@ -67,7 +68,7 @@ int lookup_name(struct sockaddr_in addr, char *hostname, int namelen)
 	status = getnameinfo((struct sockaddr*) &addr, addrlen, hostname, namelen, NULL, 0, NI_NUMERICHOST);
 
 	if (status != 0) {
-		fprintf(stderr, "getnameinfo: %s\n", gai_strerror(status));
+		dbgerr(gai_strerror(status));
 		return -1;
 	}
 
@@ -83,13 +84,13 @@ int lookup_addr(int sock_desc, struct sockaddr_in *local, struct sockaddr_in *re
 
 	len = sizeof(struct sockaddr_in);
 	if (local != NULL && getsockname(sock_desc, (struct sockaddr*) local, &len) == -1) {
-		perror("getsockname");
+		dbgerr(NULL);
 		return -1;
 	}
 
 	len = sizeof(struct sockaddr_in);
 	if (remote != NULL && getpeername(sock_desc, (struct sockaddr*) remote, &len) == -1) {
-		perror("getpeername");
+		dbgerr(NULL);
 		return -2;
 	}
 
@@ -132,7 +133,7 @@ int create_socket(const char *hostname, const char *port)
 			// set socket reusable (so that we can reuse the port quickly)
 			status = 1;
 			if (setsockopt(sock_desc, SOL_SOCKET, SO_REUSEADDR, &status, sizeof(status)) != 0)
-				perror("setsockopt");
+				dbgerr("setsockopt");
 
 			// try to bind to port
 			if (bind(sock_desc, ptr->ai_addr, ptr->ai_addrlen) != -1)
@@ -148,7 +149,7 @@ int create_socket(const char *hostname, const char *port)
 		freeaddrinfo(host);
 
 		if (listen(sock_desc, 10) != 0) {
-			perror("listen");
+			dbgerr(NULL);
 			return -3;
 		}
 
@@ -181,12 +182,60 @@ int create_socket(const char *hostname, const char *port)
  *
  * Returns 0 on success, and a negative value on failure.
  */
-static int compile_filter(const char *dev, pcap_t *handle, int sock, struct bpf_program *filter)
+static int compile_filter(const char *dev, pcap_t *handle, int conn, struct bpf_program *progcode)
 {
-	struct sockaddr_in loc_addr, rem_addr;
-	char loc_host[INET_ADDRSTRLEN],
-		 rem_host[INET_ADDRSTRLEN];
+	struct sockaddr_in loc_addr, rem_addr; // the addresses and ports of this connection
+	char loc_host[INET_ADDRSTRLEN],        // the hostname of "this side" of the connection
+		 rem_host[INET_ADDRSTRLEN];        // the hostname of the "other side" of the connection
+	unsigned short loc_port, rem_port;     // the ports of this connection
+	char *filterstr = NULL;                // the filter string
+	bpf_u_int32 netmask, netaddr;          // the network mask and network address
+	char errstr[PCAP_ERRBUF_SIZE];         // used to store error messages from libpcap
 
+
+	/* get device properties */
+	if (pcap_lookupnet(dev, &netaddr, &netmask, errstr) == -1) {
+		dbgerr(errstr);
+		return -1;
+	}
+
+
+	/* get hostnames and ports */
+	if (lookup_addr(conn, &loc_addr, &rem_addr) < 0)
+		return -2;
+
+	if (lookup_name(loc_addr, loc_host, sizeof(loc_host)) < 0)
+		return -2;
+
+	if (lookup_name(rem_addr, rem_host, sizeof(rem_host)) < 0)
+		return -2;
+
+	loc_port = ntohs(loc_addr.sin_port);
+	rem_port = ntohs(rem_addr.sin_port);
+
+
+	/* create filter string */
+	if ((filterstr = malloc(512 /* ought to be enough */)) == NULL) {
+		dbgerr(NULL);
+		return -3;
+	}
+	memset(filterstr, 0, 512);
+	snprintf(filterstr, 512,
+			"tcp and ("
+			"(dst host %s and dst port %d and src host %s and src port %d)"
+			"or (src host %s and src port %d and dst host %s and dst port %d)"
+			")",
+			loc_host, loc_port, rem_host, rem_port, loc_host, loc_port, rem_host, rem_port);
+
+
+	/* compile filter */
+	if (pcap_compile(handle, progcode, filterstr, 0, netaddr) == -1) {
+		pcap_perror(handle, "Unexpected error");
+		free(filterstr);
+		return -4;
+	}
+
+	free(filterstr);
 	return 0;
 }
 
@@ -205,7 +254,7 @@ int create_handle(pcap_t** handle, int sock, int timeout)
 
 	/* create a pcap capture handle */
 	if ((*handle = pcap_open_live(dev, 0xffff, 1, timeout, errstr)) == NULL) {
-		fprintf(stderr, "pcap_open_live: %s\n", errstr);
+		dbgerr(errstr);
 		return -2;
 	}
 
@@ -214,7 +263,7 @@ int create_handle(pcap_t** handle, int sock, int timeout)
 		return -3;
 
 	if (pcap_setfilter(*handle, &filter) == -1) {
-		pcap_perror(*handle, "pcap_setfilter");
+		pcap_perror(*handle, "Unexpected error");
 		pcap_freecode(&filter);
 		return -4;
 	}
@@ -228,6 +277,59 @@ int create_handle(pcap_t** handle, int sock, int timeout)
 /* Process a packet captured by the pcap capture filter */
 int parse_segment(pcap_t *handle, pkt_t *packet)
 {
+	struct pcap_pkthdr *hdr;
+	const u_char *pkt;
+	int status;
+	struct sockaddr_in src_addr, dst_addr;
+	unsigned int ack_no, seq_no, tcp_off, data_off, len;
+   
+	/* read next packet */
+	status = pcap_next_ex(handle, &hdr, &pkt);
+	if (status < 0) {
+		pcap_perror(handle, "Unexpected error");
+		return -1;
+	} 
+
+	/* load segment metadata */
+	if (status > 0 
+			// length >= minimum length of eth frame, IP header and TCP header?
+			&& (hdr->len >= ETH_FRAME_LEN+20+20) 
+			// IP version 4?
+			&& ((*((unsigned char*) (pkt+ETH_FRAME_LEN)) & 0xf0) >> 4) == 4
+			// protocl = TCP?
+			&& *((unsigned char*) (pkt+ETH_FRAME_LEN+9)) == 6
+	   ) {
+
+		/* read header data */
+		tcp_off = (*((unsigned char*) pkt + ETH_FRAME_LEN) & 0x0f) * 4; // IP header size (offset to IP payload / TCP header)
+		data_off = ((*((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + 12)) & 0xf0) >> 4) * 4; // TCP header size (offset to TCP payload)
+
+		src_addr.sin_addr = *((struct in_addr*) (pkt + ETH_FRAME_LEN + 12)); // source address
+		src_addr.sin_port = *((unsigned short*) (pkt + ETH_FRAME_LEN + tcp_off)); // source port
+		dst_addr.sin_addr = *((struct in_addr*) (pkt + ETH_FRAME_LEN + 16)); // destination address
+		dst_addr.sin_port = *((unsigned short*) (pkt + ETH_FRAME_LEN + tcp_off + 2)); // destination port
+
+		seq_no = ntohl(*((unsigned int*) (pkt + ETH_FRAME_LEN + tcp_off + 4))); // sequence number
+		ack_no = ntohl(*((unsigned int*) (pkt + ETH_FRAME_LEN + tcp_off + 8))); // acknowledgement number
+
+		len = ntohs(*((unsigned short*) (pkt + ETH_FRAME_LEN + 2))) - tcp_off - data_off; // payload length
+
+		// discard if SYN or FIN flag set (connection handshake/teardown)
+		if ((*((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + 13)) & 0x02))
+			return 0;
+		
+		/* load struct with header data */
+		packet->ts = hdr->ts;
+		packet->dst = dst_addr;
+		packet->src = src_addr;
+		packet->seq = seq_no;
+		packet->ack = ack_no;
+		packet->len = len;
+		packet->payload = (void const*) ((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + data_off)); // FIXME: Verify that this is correct
+
+		return status;
+	} 
+
 	return 0;
 }
 
@@ -236,4 +338,5 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 /* Free up any resources associated with the pcap capture filter */
 void destroy_handle(pcap_t *handle)
 {
+	pcap_close(handle);
 }
