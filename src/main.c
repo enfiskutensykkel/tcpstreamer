@@ -11,6 +11,22 @@
 #include "streamerctl.h"
 #include "bootstrap.h"
 #include "capture.h"
+#include "debug.h"
+
+/* Pretty print defines */
+#ifdef ANSI
+#define B "\033[1m"
+#define U "\033[4m"
+#define R "\033[0m"
+#else
+#define B ""
+#define U ""
+#define R ""
+#endif
+
+/* Macro for turning defined constant into string */
+#define STRINGIFY(str) #str
+#define NUM_2_STR(str) STRINGIFY(str)
 
 
 
@@ -51,8 +67,6 @@ static void give_usage(FILE *out, char *prog_name, int streamer_impl);
 /* Parse command line arguments and start program */
 int main(int argc, char **argv)
 {
-#define STRINGIFY(str) #str
-#define NUM_2_STR(str) STRINGIFY(str)
 
 	int i,                             // used to iterate stuff
 		num_streamers,                 // total number of streamers
@@ -74,12 +88,12 @@ int main(int argc, char **argv)
 
 	/* Set up the argument registration */
 	if ((streamer_params = malloc(sizeof(struct option*) * num_streamers)) == NULL) {
-		perror("malloc");
+		dbgerr(NULL);
 		goto cleanup_and_die;
 	}
 	for (i = 0; i < num_streamers; ++i) {
 		if ((streamer_params[i] = malloc(sizeof(struct option))) == NULL) {
-			perror("malloc");
+			dbgerr(NULL);
 			goto cleanup_and_die;
 		}
 		memset(&streamer_params[i][0], 0, sizeof(struct option));
@@ -277,7 +291,7 @@ int register_argument(struct option argument)
 			return -1;
 
 	if ((streamer_params[streamer_idx] = realloc(streamer_params[streamer_idx], sizeof(struct option) * (i+2))) == NULL) {
-		perror("realloc");
+		dbgerr(NULL);
 		return -1;
 	}
 
@@ -285,14 +299,6 @@ int register_argument(struct option argument)
 	memcpy(&streamer_params[streamer_idx][i+1], &empty, sizeof(struct option));
 
 	return i;
-}
-
-
-
-/* Packet capture registration for streamers */
-int register_callback(callback_t parser)
-{
-	return -1;
 }
 
 
