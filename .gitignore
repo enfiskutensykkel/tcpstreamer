@@ -1,6 +1,6 @@
 .*.swp
 *~
-*.o
+build/*.o
 tcpstreamer
-*.tar.gz
-build/*
+tcpstreamer-*.tar.gz
+build/autogen.c
