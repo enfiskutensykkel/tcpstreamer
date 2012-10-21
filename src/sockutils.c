@@ -2,58 +2,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <pcap.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include "utils.h"
-#include "capture.h"
-#include "pcap.h"
-
-
-
-/* Look up device associated to the socket descriptor */
-int lookup_dev(int sock_desc, char *dev, int len)
-{
-	char errstr[PCAP_ERRBUF_SIZE];
-	pcap_if_t *all_devs, *ptr;
-	pcap_addr_t *list;
-	struct sockaddr_in addr;
-
-	/* look up address */
-	if (lookup_addr(sock_desc, &addr, NULL) != 0)
-		return -2;
-
-	/* get all devices */
-	if (pcap_findalldevs(&all_devs, errstr)) {
-		fprintf(stderr, "pcap_findalldevs: %s\n", errstr);
-		return -2;
-	}
-
-	/* match device to address */
-	for (ptr = all_devs, list = NULL; ptr != NULL; ptr = ptr->next) {
-		for (list = ptr->addresses; list != NULL; list = list->next) {
-
-			if (list->addr->sa_family == addr.sin_family) {
-
-				if (addr.sin_addr.s_addr == ((struct sockaddr_in*) list->addr)->sin_addr.s_addr) {
-					// match found
-					strncpy(dev, ptr->name, len);
-					dev[len-1] = '\0';
-					pcap_freealldevs(all_devs);
-					return 0;
-				}
-
-			}
-
-		}
-	}
-
-	/* no match found */
-	pcap_freealldevs(all_devs);
-	return -1;
-}
+#include "debug.h"
 
 
 
@@ -67,7 +21,7 @@ int lookup_name(struct sockaddr_in addr, char *hostname, int namelen)
 	status = getnameinfo((struct sockaddr*) &addr, addrlen, hostname, namelen, NULL, 0, NI_NUMERICHOST);
 
 	if (status != 0) {
-		fprintf(stderr, "getnameinfo: %s\n", gai_strerror(status));
+		dbgerr(gai_strerror(status));
 		return -1;
 	}
 
@@ -83,13 +37,13 @@ int lookup_addr(int sock_desc, struct sockaddr_in *local, struct sockaddr_in *re
 
 	len = sizeof(struct sockaddr_in);
 	if (local != NULL && getsockname(sock_desc, (struct sockaddr*) local, &len) == -1) {
-		perror("getsockname");
+		dbgerr(NULL);
 		return -1;
 	}
 
 	len = sizeof(struct sockaddr_in);
 	if (remote != NULL && getpeername(sock_desc, (struct sockaddr*) remote, &len) == -1) {
-		perror("getpeername");
+		dbgerr(NULL);
 		return -2;
 	}
 
@@ -132,7 +86,7 @@ int create_socket(const char *hostname, const char *port)
 			// set socket reusable (so that we can reuse the port quickly)
 			status = 1;
 			if (setsockopt(sock_desc, SOL_SOCKET, SO_REUSEADDR, &status, sizeof(status)) != 0)
-				perror("setsockopt");
+				dbgerr("setsockopt");
 
 			// try to bind to port
 			if (bind(sock_desc, ptr->ai_addr, ptr->ai_addrlen) != -1)
@@ -148,7 +102,7 @@ int create_socket(const char *hostname, const char *port)
 		freeaddrinfo(host);
 
 		if (listen(sock_desc, 10) != 0) {
-			perror("listen");
+			dbgerr(NULL);
 			return -3;
 		}
 
@@ -171,27 +125,4 @@ int create_socket(const char *hostname, const char *port)
 	}
 
 	return sock_desc;
-}
-
-
-
-/* Create a custom pcap capture filter handle and return it */
-int create_handle(pcap_t** handle, int sock, int timeout)
-{
-	return 0;
-}
-
-
-
-/* Process a packet captured by the pcap capture filter */
-int parse_segment(pcap_t *handle, pkt_t *packet)
-{
-	return 0;
-}
-
-
-
-/* Free up any resources associated with the pcap capture filter */
-void destroy_handle(pcap_t *handle)
-{
 }

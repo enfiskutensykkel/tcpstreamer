@@ -1,5 +1,6 @@
 #include "streamer.h"
 #include "bootstrap.h"
+#include "utils.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -7,6 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <assert.h>
+#include <pcap.h>
 
 
 static int simple_streamer(int sock, const state_t *cond, const char **args)
@@ -15,10 +17,15 @@ static int simple_streamer(int sock, const state_t *cond, const char **args)
 	FILE *fp = NULL;
 	char *buf = NULL;
 	ssize_t len;
+	pcap_t *handle;
+	pkt_t pkt;
 
 
 	/* Parse arguments */
-	if (args[0] != NULL && (fp = fopen(args[0], "r")) == NULL) {	
+	if (args[0] == NULL) {
+		fprintf(stderr, "No file given\n");
+		return -1;
+	} else if ((fp = fopen(args[0], "r")) == NULL) {	
 		fprintf(stderr, "Invalid file: '%s'\n", args[0]);
 		return -1;
 	}
@@ -26,6 +33,13 @@ static int simple_streamer(int sock, const state_t *cond, const char **args)
 		fprintf(stderr, "Invalid buffer size: '%s'\n", args[1]);
 		return -2;
 	}
+
+	/* Create capture handle */
+	if (create_handle(&handle, sock, 100) < 0) {
+		fprintf(stderr, "Couldn't create handle, are you root?\n");
+		return -4;
+	}
+
 
 	/* Allocate buffer */
 	if ((buf = malloc(sizeof(char) * bufsz)) == NULL) {
@@ -35,24 +49,27 @@ static int simple_streamer(int sock, const state_t *cond, const char **args)
 	memset(buf, 0, sizeof(char) * bufsz);
 
 	/* Run streamer */
-	while (*cond == RUN && (fp == NULL || (!feof(fp) && !ferror(fp)))) {
+	while (*cond == RUN && !feof(fp) && !ferror(fp)) {
 
 		// read from file
-		if (fp != NULL) {
-			len = fread(buf, sizeof(char), bufsz, fp);
-		}
+		len = fread(buf, sizeof(char), bufsz, fp);
 
 		// send to receiver
 		send(sock, buf, len, 0);
+
+		// print packet timestamps
+		while (parse_segment(handle, &pkt) > 0)
+			fprintf(stdout, "%lu.%lu\n", pkt.ts.tv_sec, pkt.ts.tv_usec);
 	}
 
+
+	destroy_handle(handle);
 	free(buf);
 	if (fp != NULL)
 		fclose(fp);
 
 	return 0;
 }
-
 
 
 
