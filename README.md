@@ -217,7 +217,6 @@ invokation, it will be set to ``NULL`` when invoking the entry point function.
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <getopt.h>
-#include <string.h>
 #include <assert.h>
 
 /* Stream a file given to the program as an argument using --file=filename */
@@ -232,9 +231,7 @@ static int file_streamer(int conn, const state_t *run, const char **args)
 	if (args[0] == NULL) {
 		fprintf(stderr, "Must supply filename!\n");
 		return -1;
-	}
-
-	if ((fp = fopen(args[0], "r")) == NULL) {	
+	} else if ((fp = fopen(args[0], "r")) == NULL) {	
 		fprintf(stderr, "Invalid file: '%s'\n", args[0]);
 		return -1;
 	}
@@ -249,15 +246,12 @@ static int file_streamer(int conn, const state_t *run, const char **args)
 		perror("malloc");
 		return -3;
 	}
-	memset(buf, 0, sizeof(char) * bufsz);
 
 	/* Run streamer */
-	while (*run == RUN && (fp == NULL || (!feof(fp) && !ferror(fp)))) {
+	while (*run == RUN && !feof(fp) && !ferror(fp)) {
 
 		/* read from file */
-		if (fp != NULL) {
-			len = fread(buf, sizeof(char), bufsz, fp);
-		}
+		len = fread(buf, sizeof(char), bufsz, fp);
 
 		/* send to receiver */
 		send(conn, buf, len, 0);
