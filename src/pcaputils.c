@@ -6,8 +6,6 @@
 #include <string.h>
 #include <stdio.h>
 #include "utils.h"
-#include "capture.h"
-#include "sniffer.h"
 #include "debug.h"
 
 
@@ -202,8 +200,8 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 
 		/* load struct with header data */
 		packet->ts = hdr->ts;
-		packet->dst = *((struct sockaddr*) &dst_addr);
-		packet->src = *((struct sockaddr*) &src_addr);
+		packet->dst = dst_addr;
+		packet->src = src_addr;
 		packet->seq = seq_no;
 		packet->ack = ack_no;
 		packet->len = len;
@@ -213,12 +211,6 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 	} 
 
 	return 0;
-}
-
-
-
-void sniffer(pcap_t *handle, callback_t parser)
-{
 }
 
 

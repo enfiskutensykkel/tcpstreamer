@@ -10,8 +10,6 @@
 #include "utils.h"
 #include "streamerctl.h"
 #include "bootstrap.h"
-#include "capture.h"
-#include "sniffer.h"
 #include "debug.h"
 
 /* Pretty print defines */
@@ -36,12 +34,6 @@ static tblent_t *streamer_tbl = NULL;
 
 /* Streamer parameter lists */
 static struct option **streamer_params = NULL;
-
-/* Streamer parser callback list */
-static struct parser {
-	pcap_t *handle;
-	callback_t parser;
-} *streamer_cb = NULL;
 
 /* Current streamer table index */
 static int streamer_idx = -1;
@@ -106,12 +98,6 @@ int main(int argc, char **argv)
 		memset(&streamer_params[i][0], 0, sizeof(struct option));
 	}
 
-	/* Set up packet parser registration */
-	if ((streamer_cb = malloc(sizeof(struct parser) * num_streamers)) == NULL) {
-		dbgerr(NULL);
-		goto cleanup_and_die;
-	}
-	
 
 	/* Initialize streamers */
 	for (i = 0; i < num_streamers; ++i) {
@@ -263,7 +249,6 @@ int main(int argc, char **argv)
 
 
 	/* Clean up */
-	free(streamer_cb);
 	free(streamer_args);
 	close(socket_desc);
 	streamer_tbl_destroy(streamer_tbl);
@@ -277,7 +262,6 @@ int main(int argc, char **argv)
 
 
 cleanup_and_die:
-	free(streamer_cb);
 	free(streamer_args);
 
 	if (socket_desc >= 0)
@@ -314,14 +298,6 @@ int register_argument(struct option argument)
 	memcpy(&streamer_params[streamer_idx][i+1], &empty, sizeof(struct option));
 
 	return i;
-}
-
-
-
-/* Packet parser registration for streamers */
-int register_callback(callback_t parser)
-{
-	return 0;
 }
 
 

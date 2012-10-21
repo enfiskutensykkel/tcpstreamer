@@ -1,6 +1,5 @@
 #include "streamer.h"
 #include "bootstrap.h"
-#include "capture.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -56,12 +55,6 @@ static int simple_streamer(int sock, const state_t *cond, const char **args)
 
 
 
-static void capture(const pkt_t *pkt)
-{
-	printf("%lu: %u", pkt->ts.tv_sec, pkt->seq);
-}
-
-
 static void bootstrap(streamer_t entry_point)
 {
 	struct option streamer_args[] = {
@@ -74,8 +67,6 @@ static void bootstrap(streamer_t entry_point)
 	register_argument(streamer_args[0]);
 	register_argument(streamer_args[1]);
 	register_argument(streamer_args[2]);
-
-	register_callback(&capture);
 }
 
 
