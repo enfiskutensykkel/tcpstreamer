@@ -2,8 +2,8 @@
  *     Also note that on most systems, these will require running the program
  *     with superuser privileges to work.
  */
-#ifndef __PCAP__
-#define __PCAP__
+#ifndef __SNIFFER__
+#define __SNIFFER__
 
 #include "capture.h"
 #include <pcap.h>
@@ -44,6 +44,5 @@ int parse_segment(pcap_t* handle, pkt_t* seg);
 
 /* Free up the resources associated with the segment sniffer handle. */
 void destroy_handle(pcap_t* handle);
-
 
 #endif

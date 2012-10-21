@@ -1,15 +1,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <pcap.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include "utils.h"
 #include "capture.h"
-#include "pcap.h"
+#include "sniffer.h"
 #include "debug.h"
 
 
@@ -54,124 +52,6 @@ int lookup_dev(int sock_desc, char *dev, int len)
 	/* no match found */
 	pcap_freealldevs(all_devs);
 	return -1;
-}
-
-
-
-/* Look up the hostname associated to an address */
-int lookup_name(struct sockaddr_in addr, char *hostname, int namelen)
-{
-	int status;
-	socklen_t addrlen;
-
-	addrlen = sizeof(struct sockaddr_in);
-	status = getnameinfo((struct sockaddr*) &addr, addrlen, hostname, namelen, NULL, 0, NI_NUMERICHOST);
-
-	if (status != 0) {
-		dbgerr(gai_strerror(status));
-		return -1;
-	}
-
-	return 0;
-}
-
-
-
-/* Look up the addresses of both sides of a socket */
-int lookup_addr(int sock_desc, struct sockaddr_in *local, struct sockaddr_in *remote)
-{
-	socklen_t len;
-
-	len = sizeof(struct sockaddr_in);
-	if (local != NULL && getsockname(sock_desc, (struct sockaddr*) local, &len) == -1) {
-		dbgerr(NULL);
-		return -1;
-	}
-
-	len = sizeof(struct sockaddr_in);
-	if (remote != NULL && getpeername(sock_desc, (struct sockaddr*) remote, &len) == -1) {
-		dbgerr(NULL);
-		return -2;
-	}
-
-	return 0;
-}
-
-
-
-/* Create a byte stream socket (TCP)
- *
- * If hostname is NULL, try to bind to port and listen.
- * Otherwise, try to connect to hostname.
- */
-int create_socket(const char *hostname, const char *port)
-{
-	int sock_desc = -1, status;
-	struct addrinfo hints, *ptr, *host;
-
-	/* Set addrinfo hints */
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = hostname == NULL ? AI_PASSIVE : 0;
-
-	/* Get host information */
-	if ((status = getaddrinfo(hostname, port, &hints, &host)) != 0) {
-		//fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-		return -2;
-	}
-
-	if (hostname == NULL) {
-		
-		/* Try to bind to port */
-		for (ptr = host; ptr != NULL; ptr = ptr->ai_next) {
-
-			// try to create socket
-			if ((sock_desc = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol)) == -1)
-				continue;
-
-			// set socket reusable (so that we can reuse the port quickly)
-			status = 1;
-			if (setsockopt(sock_desc, SOL_SOCKET, SO_REUSEADDR, &status, sizeof(status)) != 0)
-				dbgerr("setsockopt");
-
-			// try to bind to port
-			if (bind(sock_desc, ptr->ai_addr, ptr->ai_addrlen) != -1)
-				break;
-
-		}
-
-		if (ptr == NULL) {
-			freeaddrinfo(host);
-			return -1;
-		}
-
-		freeaddrinfo(host);
-
-		if (listen(sock_desc, 10) != 0) {
-			dbgerr(NULL);
-			return -3;
-		}
-
-	} else {
-
-		/* Try to connect to host through a valid interface */
-		for (ptr = host; ptr != NULL; ptr = ptr->ai_next) {
-			if ((sock_desc = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol)) == -1)
-				continue;
-			if (connect(sock_desc, ptr->ai_addr, ptr->ai_addrlen) != -1)
-				break;
-		}
-		
-		if (ptr == NULL) {
-			freeaddrinfo(host);
-			return -1;
-		}
-
-		freeaddrinfo(host);
-	}
-
-	return sock_desc;
 }
 
 
@@ -291,6 +171,7 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 	} 
 
 	/* load segment metadata */
+	// FIXME: This test is probably unnecessary as only TCP segments should be captured by filter anyway
 	if (status > 0 
 			// length >= minimum length of eth frame, IP header and TCP header?
 			&& (hdr->len >= ETH_FRAME_LEN+20+20) 
@@ -314,14 +195,15 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 
 		len = ntohs(*((unsigned short*) (pkt + ETH_FRAME_LEN + 2))) - tcp_off - data_off; // payload length
 
-		// discard if SYN or FIN flag set (connection handshake/teardown)
+		/* discard if SYN or FIN flag set (connection handshake/teardown) */
 		if ((*((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + 13)) & 0x02))
 			return 0;
 		
+
 		/* load struct with header data */
 		packet->ts = hdr->ts;
-		packet->dst = dst_addr;
-		packet->src = src_addr;
+		packet->dst = *((struct sockaddr*) &dst_addr);
+		packet->src = *((struct sockaddr*) &src_addr);
 		packet->seq = seq_no;
 		packet->ack = ack_no;
 		packet->len = len;
@@ -331,6 +213,12 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 	} 
 
 	return 0;
+}
+
+
+
+void sniffer(pcap_t *handle, callback_t parser)
+{
 }
 
 
