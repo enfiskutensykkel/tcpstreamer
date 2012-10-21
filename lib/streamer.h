@@ -2,12 +2,16 @@
 #define __STREAMER__
 
 #include <sys/types.h>
+#include <getopt.h>
 
 
+
+/* Instance state declaration */
 typedef enum { STOP = 0, RUN = 1 } state_t;
 
-/* Streamer instance signature */
+/* Streamer entry point signature */
 typedef int (*streamer_t)(int, state_t const*, char const**);
+
 
 
 /* Streamer declaration macro */
@@ -20,5 +24,10 @@ typedef int (*streamer_t)(int, state_t const*, char const**);
 		*init= initialize ;\
 		*uninit= uninitialize ;\
 		}
+
+
+
+/* Register an argument to the streamer entry point. */
+int register_argument(struct option argument);
 
 #endif

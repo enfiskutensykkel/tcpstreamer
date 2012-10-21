@@ -12,6 +12,7 @@
 
 
 
+/* Reject connection (accept+close socket) */
 static void reject_connection(int listen_sock)
 {
 	int sock_fd;
@@ -21,6 +22,7 @@ static void reject_connection(int listen_sock)
 
 
 
+/* Accept connection */
 static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *sock)
 {
 	int recv_sock, status;
@@ -44,6 +46,7 @@ static int accept_connection(int listen_sock, struct sockaddr_in *addr, int *soc
 
 
 
+/* Accept connections and read data from them */
 void receiver(int listen_sock, state_t const *run)
 {
 	struct conn {

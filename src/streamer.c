@@ -4,8 +4,8 @@
 #include <errno.h>
 #include <time.h>
 #include <assert.h>
-#include "streamerctl.h"
 #include "streamer.h"
+#include "bootstrap.h"
 
 
 /* Handle the auto-generated code */

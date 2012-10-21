@@ -8,7 +8,6 @@
 #include <netdb.h>
 #include <pcap.h>
 #include "utils.h"
-#include "streamerctl.h"
 #include "bootstrap.h"
 #include "debug.h"
 
@@ -43,10 +42,6 @@ static state_t streamer_run = STOP;
 
 
 
-
-
-/* Run receiver */
-extern void receiver(int sock_desc, state_t *cond);
 
 
 /* Signal handler to catch user interruption */
