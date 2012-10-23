@@ -160,7 +160,7 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 	if (streamer_state == RUNNING) {
 
 		assert(clock_gettime(CLOCK_REALTIME, &timeout) == 0);
-		timeout.tv_nsec += 50 << 20;
+		timeout.tv_nsec += 500 << 20; // ~.5 seconds
 
 		if (pthread_cond_timedwait(&th_arg->stopped, &th_arg->state_mutex, &timeout) == ETIMEDOUT) {
 			pthread_cancel(thread);
