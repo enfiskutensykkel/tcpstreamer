@@ -16,7 +16,7 @@ static int sample_rtt = 0;
 
 
 
-static int filestreamer(int sock, const state_t *run, const char **args)
+static int filestream(int sock, const state_t *run, const char **args)
 {
 	int bufsz = 1460;
 	FILE *fp = NULL;
@@ -119,7 +119,7 @@ static void bootstrap(streamer_t entry_point)
 		{"show-rtt", 0, &sample_rtt, 1}
 	};
 
-	if (entry_point == &filestreamer) {
+	if (entry_point == &filestream) {
 		register_argument(streamer_args[0]);
 		register_argument(streamer_args[1]);
 		register_argument(streamer_args[2]);
@@ -128,4 +128,4 @@ static void bootstrap(streamer_t entry_point)
 }
 
 
-STREAMER(filestreamer, bootstrap, NULL)
+STREAMER(filestream, bootstrap, NULL)
