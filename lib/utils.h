@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 #include <pcap.h>
 
 
@@ -26,10 +27,11 @@
 typedef struct {
 	struct timeval ts;       // timestamp of when segment was caught in filter
 	struct sockaddr_in dst;  // destination address and port
-	struct sockaddr_in src ; // source address and port
-	unsigned seq;            // segment sequence number
-	unsigned ack;            // segment acknowledgement number
-	unsigned len;            // payload length
+	struct sockaddr_in src;  // source address and port
+	uint16_t win;            // window size
+	uint32_t seq;            // segment sequence number
+	uint32_t ack;            // segment acknowledgement number
+	uint16_t len;            // payload length
 	void const* payload;     // pointer to payload data
 } pkt_t;
 

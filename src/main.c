@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 				opts = streamer_params[streamer_idx];
 
 				for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i);
-				streamer_args = malloc(sizeof(char**) * i);
+				streamer_args = malloc(sizeof(char*) * i);
 			
 				for (i = 0; streamer_params[streamer_idx][i].name != NULL; ++i)
 					streamer_args[i] = NULL;
@@ -195,6 +195,7 @@ int main(int argc, char **argv)
 
 	/* Create signal handler to deal with interruption */
 	assert(signal(SIGINT, (void (*)(int)) &handle_signal) != SIG_ERR);
+	assert(signal(SIGPIPE, (void (*)(int)) &handle_signal) != SIG_ERR);
 
 
 	/* Create socket descriptor and start instance */
@@ -226,7 +227,8 @@ int main(int argc, char **argv)
 		fprintf(stdout, "Successfully connected to %s\n", hostname);
 
 		/* Start streamer */
-		streamer(&streamer_tbl[streamer_idx], duration, socket_desc, &streamer_run, streamer_args);
+		fprintf(stdout, "Streamer exited with status code: %d\n",
+			streamer(&streamer_tbl[streamer_idx], duration, socket_desc, &streamer_run, streamer_args));
 
 
 	} else {
@@ -244,21 +246,18 @@ int main(int argc, char **argv)
 
 
 	/* Clean up */
-	free(streamer_args);
 	close(socket_desc);
 	streamer_tbl_destroy(streamer_tbl);
-
 	for (i = 0; i < num_streamers; ++i) {
 		free(streamer_params[i]);
 	}
 	free(streamer_params);
+	free(streamer_args);
 
 	exit(0);
 
 
 cleanup_and_die:
-	free(streamer_args);
-
 	if (socket_desc >= 0)
 		close(socket_desc);
 	free(streamer_tbl);
@@ -266,6 +265,7 @@ cleanup_and_die:
 		free(streamer_params[i]);
 	}
 	free(streamer_params);
+	free(streamer_args);
 	exit(1);
 }
 

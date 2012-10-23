@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <pcap.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include "utils.h"
@@ -159,7 +160,8 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 	const u_char *pkt;
 	int status;
 	struct sockaddr_in src_addr, dst_addr;
-	unsigned int ack_no, seq_no, tcp_off, data_off, len;
+	uint32_t ack_no, seq_no, tcp_off, data_off;
+	uint16_t win_sz, len;
    
 	/* read next packet */
 	status = pcap_next_ex(handle, &hdr, &pkt);
@@ -174,27 +176,29 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 			// length >= minimum length of eth frame, IP header and TCP header?
 			&& (hdr->len >= ETH_FRAME_LEN+20+20) 
 			// IP version 4?
-			&& ((*((unsigned char*) (pkt+ETH_FRAME_LEN)) & 0xf0) >> 4) == 4
+			&& ((*((uint8_t*) (pkt+ETH_FRAME_LEN)) & 0xf0) >> 4) == 4
 			// protocl = TCP?
-			&& *((unsigned char*) (pkt+ETH_FRAME_LEN+9)) == 6
+			&& *((uint8_t*) (pkt+ETH_FRAME_LEN+9)) == 6
 	   ) {
 
 		/* read header data */
-		tcp_off = (*((unsigned char*) pkt + ETH_FRAME_LEN) & 0x0f) * 4; // IP header size (offset to IP payload / TCP header)
-		data_off = ((*((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + 12)) & 0xf0) >> 4) * 4; // TCP header size (offset to TCP payload)
+		tcp_off = (*((uint8_t*) pkt + ETH_FRAME_LEN) & 0x0f) * 4; // IP header size (offset to IP payload / TCP header)
+		data_off = ((*((uint8_t*) (pkt + ETH_FRAME_LEN + tcp_off + 12)) & 0xf0) >> 4) * 4; // TCP header size (offset to TCP payload)
 
 		src_addr.sin_addr = *((struct in_addr*) (pkt + ETH_FRAME_LEN + 12)); // source address
-		src_addr.sin_port = *((unsigned short*) (pkt + ETH_FRAME_LEN + tcp_off)); // source port
+		src_addr.sin_port = *((uint16_t*) (pkt + ETH_FRAME_LEN + tcp_off)); // source port
 		dst_addr.sin_addr = *((struct in_addr*) (pkt + ETH_FRAME_LEN + 16)); // destination address
-		dst_addr.sin_port = *((unsigned short*) (pkt + ETH_FRAME_LEN + tcp_off + 2)); // destination port
+		dst_addr.sin_port = *((uint16_t*) (pkt + ETH_FRAME_LEN + tcp_off + 2)); // destination port
 
-		seq_no = ntohl(*((unsigned int*) (pkt + ETH_FRAME_LEN + tcp_off + 4))); // sequence number
-		ack_no = ntohl(*((unsigned int*) (pkt + ETH_FRAME_LEN + tcp_off + 8))); // acknowledgement number
+		seq_no = ntohl(*((uint32_t*) (pkt + ETH_FRAME_LEN + tcp_off + 4))); // sequence number
+		ack_no = ntohl(*((uint32_t*) (pkt + ETH_FRAME_LEN + tcp_off + 8))); // acknowledgement number
 
-		len = ntohs(*((unsigned short*) (pkt + ETH_FRAME_LEN + 2))) - tcp_off - data_off; // payload length
+		win_sz = ntohl(*((uint16_t*) (pkt + ETH_FRAME_LEN + tcp_off + 14))); // window size
+
+		len = ntohs(*((uint16_t*) (pkt + ETH_FRAME_LEN + 2))) - tcp_off - data_off; // payload length
 
 		/* discard if SYN or FIN flag set (connection handshake/teardown) */
-		if ((*((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + 13)) & 0x02))
+		if ((*((uint8_t*) (pkt + ETH_FRAME_LEN + tcp_off + 13)) & 0x02))
 			return 0;
 		
 
@@ -205,7 +209,7 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 		packet->seq = seq_no;
 		packet->ack = ack_no;
 		packet->len = len;
-		packet->payload = (void const*) ((unsigned char*) (pkt + ETH_FRAME_LEN + tcp_off + data_off)); // FIXME: Verify that this is correct
+		packet->payload = (void const*) ((uint8_t*) (pkt + ETH_FRAME_LEN + tcp_off + data_off)); // FIXME: Verify that this is correct
 
 		return status;
 	} 
@@ -218,5 +222,6 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 /* Free up any resources associated with the pcap capture filter */
 void destroy_handle(pcap_t *handle)
 {
-	pcap_close(handle);
+	if (handle != NULL)
+		pcap_close(handle);
 }

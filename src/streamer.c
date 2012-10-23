@@ -88,8 +88,7 @@ static void* run_streamer(struct thread_arg *arg)
 
 	/* Call streamer entry point */
 	status = arg->entry_point(arg->connection, arg->condition, arg->arguments);
-	if (arg->status != NULL)
-		*(arg->status) = status;
+	*(arg->status) = status;
 
 	/* Notify that we are done */
 	pthread_mutex_lock(&arg->state_mutex);
@@ -98,7 +97,7 @@ static void* run_streamer(struct thread_arg *arg)
 	pthread_mutex_unlock(&arg->state_mutex);
 
 	/* Exit thread */
-	pthread_exit(NULL);
+	pthread_exit(&arg->status);
 }
 
 
@@ -111,6 +110,7 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 	struct thread_arg *th_arg;
 	struct timespec timeout = {0, 100 * 1000 * 1000};
 	unsigned utime = dur * 1000;
+	int status = -1;
 
 	/* Initialize thread arguments */
 	if ((th_arg = malloc(sizeof(struct thread_arg))) == NULL)
@@ -120,7 +120,7 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 	th_arg->connection = conn;
 	th_arg->condition = cond;
 	th_arg->arguments = args;
-	th_arg->status = NULL;
+	th_arg->status = &status;
 
 	assert(!pthread_mutex_init(&th_arg->state_mutex, NULL));
 	assert(!pthread_cond_init(&th_arg->stopped, NULL));
@@ -169,11 +169,11 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 
 
 	/* Streamer thread rendezvous and resource freeing */
-	pthread_join(thread, NULL);
+	pthread_join(thread, (void**) &th_arg->status);
 	pthread_attr_destroy(&attr);
 	pthread_cond_destroy(&th_arg->stopped);
 	pthread_mutex_destroy(&th_arg->state_mutex);
 	free(th_arg);
 
-	return 0;
+	return status;
 }
