@@ -43,7 +43,8 @@ To start a streamer instance, invoke the program with:
 Where `streamer` is the name of an available streamer implementation, and 
 `hostname` is either the hostname or IPv4 address of the host running a 
 receiver instance. The default port is 50000, if you want to change the port
-the program listens to / streams to, use the `-p` option.
+the program listens to / streams to, use the `-p` option. You can set the
+stream duration in seconds if you supply the `-t` option (`-t 0` means "run forever").
 You can also use the following command for more program invokation options:
 
 		./tcpstreamer -h [-s streamer]
