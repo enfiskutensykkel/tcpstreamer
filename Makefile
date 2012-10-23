@@ -26,7 +26,7 @@ INC := $(INC_DIR:%/=%)
 SRC := $(foreach d,$(SRC_DIR:%/=%),$(shell find $(d)/ -name "*.c"))
 EXT := $(foreach d,$(EXT_DIR:%/=%),$(shell find $(d)/ -name "*.c"))
 HDR := $(foreach d,$(SRC_DIR:%/=%) $(INC) $(EXT_DIR:%/=%),$(shell find $(d)/ -name "*.h"))
-ALL := $(SRC) $(HDR) Makefile README.md autogen.sh
+ALL := $(SRC) $(HDR) Makefile README.md filter.sh
 
 
 ### Compiler and linker settings ###
