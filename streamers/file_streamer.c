@@ -1,15 +1,18 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <pcap.h>
 #include <getopt.h>
+#include <stdio.h>
 #include "streamer.h"
 #include "utils.h"
 
 
 
 static int count_dupacks = 0;
+
+static int sample_rtt = 0;
 
 
 
@@ -23,6 +26,8 @@ static int filestreamer(int sock, const state_t *run, const char **args)
 	pkt_t pkt;
 	unsigned dupacks = 0, ack_hi = 0;
 	struct sockaddr_in addr;
+	unsigned rtt_sample = 0;
+	double rtt;
 
 
 	/* Parse arguments */
@@ -39,7 +44,7 @@ static int filestreamer(int sock, const state_t *run, const char **args)
 	}
 
 	/* Create capture handle */
-	if (count_dupacks && create_handle(&handle, sock, 10) < 0) {
+	if ((count_dupacks || sample_rtt) && create_handle(&handle, sock, 10) < 0) {
 		fprintf(stderr, "Couldn't create handle, are you root?\n");
 		return -4;
 	}
@@ -67,15 +72,28 @@ static int filestreamer(int sock, const state_t *run, const char **args)
 			break;
 
 		// print packet timestamps
-		while (*run && count_dupacks && parse_segment(handle, &pkt) > 0) {
-			if (pkt.dst.sin_addr.s_addr == addr.sin_addr.s_addr &&
+		while (*run && (count_dupacks || sample_rtt) && parse_segment(handle, &pkt) > 0) {
+			if (sample_rtt && pkt.src.sin_addr.s_addr == addr.sin_addr.s_addr &&
+					pkt.src.sin_port == addr.sin_port) {
+
+				if (rtt_sample == 0) {
+					rtt_sample = pkt.seq + pkt.len;
+					rtt = pkt.ts.tv_sec * 1000.0 * 1000.0 + pkt.ts.tv_usec;
+				}
+
+			} else if (pkt.dst.sin_addr.s_addr == addr.sin_addr.s_addr &&
 					pkt.dst.sin_port == addr.sin_port) {
 
-				if (pkt.ack > ack_hi) {
-					fprintf(stdout, "%lu.%06lu Incrementing ACK from %u to %u\n", pkt.ts.tv_sec, pkt.ts.tv_usec, ack_hi, pkt.ack);
+				if (rtt_sample != 0 && pkt.ack > rtt_sample) {
+					rtt = (pkt.ts.tv_sec * 1000.0 * 1000.0 + pkt.ts.tv_usec) - rtt;
+					fprintf(stdout, "%lu.%06lu RTT sampled to %.2lf ms\n", pkt.ts.tv_sec, pkt.ts.tv_usec, rtt / 1000.0);
+					rtt_sample = 0;
+				} 
+
+				if (count_dupacks && pkt.ack > ack_hi) {
 					ack_hi = pkt.ack;
 					dupacks = 0;
-				} else if (pkt.ack == ack_hi && ++dupacks >= 3) {
+				} else if (count_dupacks && pkt.ack == ack_hi && ++dupacks >= 3) {
 					fprintf(stdout, "%lu.%06lu %d dupACKs for %u\n", pkt.ts.tv_sec, pkt.ts.tv_usec, dupacks, ack_hi);
 				}
 			}
@@ -97,13 +115,15 @@ static void bootstrap(streamer_t entry_point)
 	struct option streamer_args[] = {
 		{"file", 1, 0, 0},
 		{"bufsz", 1, 0, 0},
-		{"show-dupacks", 0, &count_dupacks, 1}
+		{"show-dupacks", 0, &count_dupacks, 1},
+		{"show-rtt", 0, &sample_rtt, 1}
 	};
 
 	if (entry_point == &filestreamer) {
 		register_argument(streamer_args[0]);
 		register_argument(streamer_args[1]);
 		register_argument(streamer_args[2]);
+		register_argument(streamer_args[3]);
 	}
 }
 
