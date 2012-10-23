@@ -172,7 +172,7 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 
 	/* load segment metadata */
 	// FIXME: This test is probably unnecessary as only TCP segments should be captured by filter anyway
-	if (status > 0 
+	if (status == 1
 			// length >= minimum length of eth frame, IP header and TCP header?
 			&& (hdr->len >= ETH_FRAME_LEN+20+20) 
 			// IP version 4?
@@ -211,7 +211,7 @@ int parse_segment(pcap_t *handle, pkt_t *packet)
 		packet->len = len;
 		packet->payload = (void const*) ((uint8_t*) (pkt + ETH_FRAME_LEN + tcp_off + data_off)); // FIXME: Verify that this is correct
 
-		return status;
+		return 1;
 	} 
 
 	return 0;
