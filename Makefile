@@ -33,7 +33,7 @@ ALL := $(SRC) $(HDR) Makefile README.md filter.sh
 CC := colorgcc # gcc
 LD := gcc
 CFLAGS := -std=gnu99 -Wall -Wextra -pedantic -g 
-LDLIBS := pcap pthread
+LDLIBS := pcap pthread rt
 
 
 ### Templates for auto-generated code ###

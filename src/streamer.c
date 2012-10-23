@@ -102,6 +102,7 @@ static void* run_streamer(struct thread_arg *arg)
 
 
 
+#include <stdio.h>
 /* Start streamer thread */
 int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const **args)
 {
@@ -158,8 +159,8 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 	pthread_mutex_lock(&th_arg->state_mutex);
 	if (streamer_state == RUNNING) {
 
-		timeout.tv_sec = 0;
-		timeout.tv_nsec = 50 << 20;
+		assert(clock_gettime(CLOCK_REALTIME, &timeout) == 0);
+		timeout.tv_nsec += 50 << 20;
 
 		if (pthread_cond_timedwait(&th_arg->stopped, &th_arg->state_mutex, &timeout) == ETIMEDOUT) {
 			pthread_cancel(thread);
