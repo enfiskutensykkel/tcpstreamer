@@ -3,14 +3,18 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <pcap.h>
-#include <getopt.h>
 #include <stdio.h>
 #include "utils.h"
 
 
 
-int streamer(int sock)
+int streamer(void)
 {
-	printf("Hello Word: %x\n", sock);
+	puts("Hello, world!");
 	return 0;
+}
+
+void streamer_create(void)
+{
+
 }

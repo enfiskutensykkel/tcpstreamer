@@ -29,7 +29,7 @@ static enum { RUNNING, STOPPED } streamer_state;
 
 
 /* Load dynamic library file / shared object file and symbols */
-int load_streamer(char const *name, streamer_t *entry, callback_t *init, callback_t *uninit)
+int load_streamer(char const *name, streamer_t *entry, callback_t *init)
 {
 
 	char *filename = NULL;
@@ -55,9 +55,11 @@ int load_streamer(char const *name, streamer_t *entry, callback_t *init, callbac
 	if (*entry == NULL)
 		return -2;
 
-	/* Load symbols for constructor/destructor */
+	/* Load symbols for initialization function */
+	dlerror();
 	*init = (callback_t) dlsym(handle, "streamer_create");
-	*uninit = (callback_t) dlsym(handle, "streamer_destroy");
+	if (dlerror() != NULL)
+		*init = NULL;
 
 	/* Close dynamic library file */
 	dlclose(handle);

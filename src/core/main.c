@@ -9,7 +9,7 @@
 #include <pcap.h>
 #include "instance.h"
 #include "utils.h"
-#include "debug.h"
+#include "bootstrap.h"
 
 /* Defines for pretty-print */
 #ifdef ANSI
@@ -35,8 +35,7 @@ int main(int argc, char **argv)
 {
 	char *streamer_name = NULL;         // name of streamer
 	streamer_t streamer_entry = NULL;   // pointer streamer entry point
-	callback_t streamer_create = NULL;  // pointer to streamer init-function
-	callback_t streamer_destroy = NULL; // pointer to streamer uninit-function
+	callback_t streamer_init = NULL;    // pointer to streamer initialization function
 
 
 	/* Parse command line options and arguments */
@@ -68,14 +67,17 @@ int main(int argc, char **argv)
 					fprintf(stderr, "Streamer is already selected\n");
 					goto cleanup_and_die;
 				}
-				if (load_streamer(optarg, &streamer_entry, &streamer_create, &streamer_destroy) < 0) {
+
+				/* Load streamer */
+				if (load_streamer(optarg, &streamer_entry, &streamer_init) < 0) {
 					fprintf(stderr, "No such streamer: %s\n", optarg);
 					goto cleanup_and_die;
 				}
 				streamer_name = optarg;
 
-				if (streamer_create != NULL)
-					streamer_create(streamer_entry);
+				/* Initialize streamer */
+				if (streamer_init != NULL)
+					streamer_init(streamer_entry);
 				break;
 		}
 	}
@@ -83,6 +85,10 @@ int main(int argc, char **argv)
 	if (streamer_entry != NULL) {
 		streamer_entry(0xdeadbeef, 0, 0);
 	}
+
+	/* Uninitialize streamer */
+	if (streamer_destroy != NULL)
+		streamer_destroy(streamer_entry);
 
 	exit(0);
 
