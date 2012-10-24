@@ -30,16 +30,19 @@ DEF := $(DEFINES:-D%=%) __STREAMER_DIR__="$(EXT_OUT)"
 HDR := $(INCLUDE)
 INC := $(INC_DIR:%/=%)
 SRC := $(shell find $(SRC_DIR:%/=%)/ -type f -regex ".+\.c")
-DIR := $(foreach d,$(EXT_DIR:%/=%),$(shell find $(d)/ -type d))
-ALL := $(foreach d,$(SRC_DIR:%/=%) $(DIR:%/=%) $(INC),$(shell find $(d)/ -type f -regex ".+\.[ch]")) Makefile README.md filter.sh 
+DIR := $(foreach d,$(EXT_DIR:%/=%),$(shell find $(d)/ -mindepth 1 -maxdepth 1 -type d))
+ALL := $(foreach d,$(SRC_DIR:%/=%) $(EXT_DIR:%/=%) $(DIR:%/=%) $(INC),$(shell find $(d)/ -type f -regex ".+\.[ch]")) Makefile README.md filter.sh 
 
 OBJ_OUT := $(firstword $(OBJ_OUT:%/=%))
 EXT_OUT := $(firstword $(EXT_OUT:%/=%))
+
+DATE := $(shell date +%Y%m%d%H%M)
 
 
 ### Helper functions ###
 expand_files = $(shell find $(1) -mindepth 2 -type f -regex ".+\.c")
 target_name = $(subst /,_,$(patsubst ./%,%,$(1)))
+streamer_name = $(foreach d,$(EXT_DIR:%/=%),$(patsubst $(d)/%,%,$(1)))
 
 
 ### Make targets ###
@@ -62,7 +65,7 @@ endef
 
 $(foreach file,$(SRC),$(eval $(call compile_target_tmpl,$(file),$(call target_name,$(file:%.c=%.o)),OBJ)))
 $(foreach d,$(DIR),$(foreach file,$(call expand_files,$(d)),$(eval $(call compile_target_tmpl,$(file),$(call target_name,$(file:%.c=%.so)),$(call target_name,$(d))_OBJ))))
-$(foreach d,$(DIR),$(eval $(call link_target_tmpl,test,$(call target_name,$(d))_OBJ)))
+$(foreach d,$(DIR),$(eval $(call link_target_tmpl,$(call streamer_name,$(d)),$(call target_name,$(d))_OBJ)))
 
 $(PROJECT): $(OBJ)
 	$(LD) -rdynamic -ldl $(addprefix -l,$(LDLIBS:-l%=%)) -o $@ $^
@@ -70,15 +73,15 @@ $(PROJECT): $(OBJ)
 streamers: $(EXT)
 
 clean:
-	-$(RM) $(OBJ) $(EXT)
+	-$(RM) $(OBJ) 
 
 realclean: clean
-	-$(RM) $(PROJECT)
+	-$(RM) $(EXT) $(PROJECT)
 
 tar: $(ALL)
-	-ln -sf ./ $(PROJECT)
-	tar czf $(PROJECT)-$(shell date +%Y%m%d%H%M).tar.gz $(patsubst %,$(PROJECT)/%,$^)
-	-$(RM) $(PROJECT)
+	-ln -sf ./ $(PROJECT)-$(DATE)
+	tar czf $(PROJECT)-$(DATE).tar.gz $(patsubst %,$(PROJECT)-$(DATE)/%,$^)
+	-$(RM) $(PROJECT)-$(DATE)
 
 todo:
 	-@for file in $(ALL:Makefile=); do \
