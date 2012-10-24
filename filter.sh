@@ -44,7 +44,7 @@ remote_run(){
 	status=$?
 	if [ $status -eq 130 ]; then
 		# assume ^C
-		# TODO
+		# FIXME: Make an abort routine
 		printf "ABORTED\n"
 		exit 1
 	elif [ $status -ne 0 ]; then
@@ -66,7 +66,7 @@ remote_copy(){
 	status=$?
 	if [ $status -eq 130 ]; then
 		# assume ^C
-		# TODO
+		# FIXME: Make an abort routine
 		printf "ABORTED\n"
 		exit 1
 	elif [ $status -ne 0 ]; then
