@@ -104,7 +104,7 @@ int streamer(int sock, const int *run, const char **args)
 }
 
 /* Register arguments for the streamer */
-void streamer_create(void)
+void streamer_init(void)
 {
 	register_argument("file", NULL, 1);
 	register_argument("bufsz", NULL, 0);
