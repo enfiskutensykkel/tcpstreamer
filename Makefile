@@ -1,17 +1,16 @@
-#Project name
+# Project name
 PROJECT=tcpstreamer
 
-# Temporary directory to store object files
-TMP_DIR=build
+# Build directories
+OBJ_OUT=build
+EXT_OUT=streamers
 
-# Exported headers and shared library function declarations
+# Shared library functions
 INC_DIR=lib
 
-# Source code directory
-SRC_DIR=src
-
-# Custom streamers directory
-EXT_DIR=streamers
+# Source code directories
+SRC_DIR=src/core 
+EXT_DIR=src/streamers
 
 # Custom defines and constants
 INCLUDE=lib/defines.h
@@ -19,69 +18,62 @@ DEFINES=ANSI DEBUG
 
 
 
-### Generic make variables ###
-DEF := $(DEFINES:-D%=%)
-OUT := $(TMP_DIR:%/=%)
-INC := $(INC_DIR:%/=%)
-SRC := $(foreach d,$(SRC_DIR:%/=%),$(shell find $(d)/ -name "*.c"))
-EXT := $(foreach d,$(EXT_DIR:%/=%),$(shell find $(d)/ -name "*.c"))
-HDR := $(foreach d,$(SRC_DIR:%/=%) $(INC) $(EXT_DIR:%/=%),$(shell find $(d)/ -name "*.h"))
-ALL := $(SRC) $(HDR) Makefile README.md filter.sh
-
-
 ### Compiler and linker settings ###
-CC := colorgcc # gcc
+CC := colorgcc
 LD := gcc
-CFLAGS := -std=gnu99 -Wall -Wextra -pedantic -g 
+CFLAGS := -std=gnu99 -Wall -Wextra -pedantic -g
 LDLIBS := pcap pthread rt
 
 
-### Templates for auto-generated code ###
-define struct_tmpl
-struct streamer { \
-	const char *id; \
-        void (*bootstrapper)(); \
-};
-endef
+### Generic make variables ###
+DEF := $(DEFINES:-D%=%) __STREAMER_DIR__="$(EXT_OUT)"
+HDR := $(INCLUDE)
+INC := $(INC_DIR:%/=%)
+SRC := $(shell find $(SRC_DIR:%/=%)/ -type f -regex ".+\.c")
+DIR := $(foreach d,$(EXT_DIR:%/=%),$(shell find $(d)/ -type d))
+ALL := $(foreach d,$(SRC_DIR:%/=%) $(DIR:%/=%) $(INC),$(shell find $(d)/ -type f -regex ".+\.[ch]")) Makefile README.md filter.sh 
 
-define fundecl_tmpl 
-extern void __$(1)();
-endef
+OBJ_OUT := $(firstword $(OBJ_OUT:%/=%))
+EXT_OUT := $(firstword $(EXT_OUT:%/=%))
 
-define arraydecl_tmpl 
-struct streamer __streamers[] = { $(foreach fun,$(FUN),{"$(fun)", &__$(fun)},) {0, 0} };
-endef
+
+### Helper functions ###
+expand_files = $(shell find $(1) -mindepth 2 -type f -regex ".+\.c")
+target_name = $(subst /,_,$(patsubst ./%,%,$(1)))
 
 
 ### Make targets ###
-.PHONY: $(PROJECT) all clean realclean tar todo
-all: $(PROJECT)
+.PHONY: $(PROJECT) all clean realclean streamers tar todo
+all: $(PROJECT) streamers 
 
-define target_template
-$(OUT)/$(2): $(1) $(INCLUDE)
+define compile_target_tmpl
+$(OBJ_OUT)/$(2): $(1) $(HDR)
 	-@mkdir -p $$(@D)
-	$$(CC) $$(CFLAGS) $(addprefix -I, $(INC)) $(addprefix -include, $(INCLUDE)) $(addprefix -D,$(DEF)) -o $$@ -c $$<
-OBJ += $(OUT)/$(2)
-GEN += $(if $(3),$(OUT)/$(2))
-FUN += $(if $(3),$(shell sed -nE $(3) $(1)))
+	$$(CC) $$(CFLAGS) -fPIC $(addprefix -I,$(INC)) $(addprefix -include,$(HDR)) $(addprefix -D,$(DEF)) -o $$@ -c $$<
+$(3) += $(OBJ_OUT)/$(2)
 endef
-$(foreach file,$(SRC),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))))))
-$(foreach file,$(EXT),$(eval $(call target_template,$(file),$(subst /,_,$(patsubst ./%,%,$(file:%.c=%.o))),"s/\s*STREAMER\(\s*&?(\w+)\s*(,\s*&?\w+)*\s*\)/\1/p")))
 
-$(OUT)/autogen.o: $(GEN)
-	@echo '$(call struct_tmpl)' > $(@:%.o=%.c)
-	@echo '$(foreach fun,$(FUN),$(call fundecl_tmpl,$(fun)))' >> $(@:%.o=%.c)
-	@echo '$(call arraydecl_tmpl)' >> $(@:%.o=%.c)
-	$(CC) -c -o $@ $(@:%.o=%.c)
+define link_target_tmpl
+$(EXT_OUT)/$(1): $$($(2))
+	-@mkdir -p $$(@D)
+	$$(LD) -fPIC -shared -nostartfiles $$(addprefix -l,$$(LDLIBS:-l%=%)) -o $$@ $$^
+EXT += $(EXT_OUT)/$(1)
+endef
 
-$(PROJECT): $(OBJ) $(OUT)/autogen.o
-	$(LD) $(addprefix -l,$(LDLIBS:-l%=%)) -o $@ $^
+$(foreach file,$(SRC),$(eval $(call compile_target_tmpl,$(file),$(call target_name,$(file:%.c=%.o)),OBJ)))
+$(foreach d,$(DIR),$(foreach file,$(call expand_files,$(d)),$(eval $(call compile_target_tmpl,$(file),$(call target_name,$(file:%.c=%.so)),$(call target_name,$(d))_OBJ))))
+$(foreach d,$(DIR),$(eval $(call link_target_tmpl,test,$(call target_name,$(d))_OBJ)))
+
+$(PROJECT): $(OBJ)
+	$(LD) -rdynamic -ldl $(addprefix -l,$(LDLIBS:-l%=%)) -o $@ $^
+
+streamers: $(EXT)
 
 clean:
-	-$(RM) $(OBJ) $(OUT)/autogen.o 
+	-$(RM) $(OBJ) $(EXT)
 
 realclean: clean
-	-$(RM) $(OUT)/autogen.c $(PROJECT)
+	-$(RM) $(PROJECT)
 
 tar: $(ALL)
 	-ln -sf ./ $(PROJECT)
@@ -92,3 +84,4 @@ todo:
 	-@for file in $(ALL:Makefile=); do \
 		fgrep -H -e TODO -e FIXME $$file; \
 	done; true
+

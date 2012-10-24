@@ -24,7 +24,7 @@
 
 /* Macro for turning defined constant into string */
 #define STRINGIFY(str) #str
-#define NUM_2_STR(str) STRINGIFY(str)
+#define DEF_2_STR(str) STRINGIFY(str)
 
 
 
@@ -57,7 +57,6 @@ static void give_usage(FILE *out, char *prog_name, int streamer_impl);
 
 
 
-
 /* Parse command line arguments and start program */
 int main(int argc, char **argv)
 {
@@ -66,7 +65,7 @@ int main(int argc, char **argv)
 		num_streamers,                 // total number of streamers
 		socket_desc = -1;              // socket descriptor
 	char hostname[INET_ADDRSTRLEN],    // the canonical hostname
-		 *port = NUM_2_STR(DEF_PORT),  // port number (as string)
+		 *port = DEF_2_STR(DEF_PORT),  // port number (as string)
 		 *host = NULL,                 // hostname given as argument
 		 *sptr = NULL;                 // used to verified that a proper number is given to strtoul
 	char const **streamer_args = NULL; // arguments passed on to the streamer
@@ -74,6 +73,8 @@ int main(int argc, char **argv)
 	struct option *opts = NULL;        // used for giving opts to getopt_long when a streamer is selected
 	struct sockaddr_in addr;           // used just for host pretty print
 	
+	puts(DEF_2_STR(__STREAMER_DIR__));
+	return 0;
 
 	/* Initialize streamer table */
 	num_streamers = streamer_tbl_create(&streamer_tbl);
