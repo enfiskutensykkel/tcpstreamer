@@ -55,9 +55,9 @@ You can also use the following command for more program invokation options:
 I _think_ that any C99 compliant C compiler would be able to compile the code,
 although I can't guarantee that I'm not relying on some GNU99 specific features.
 
-I do, however, rely on a build script (Makefile) to parse the streamer 
-source files and make some auto-generated code. So unless you replicate the
-building process in some other way, I recommend that you use:
+I rely on my build script for dividing logically the streamers from the core 
+program, so I recommend that you use the following when building unless you're
+able to replicate the building process:
 * GNU Make 
 * GCC
 * sh or bash
@@ -71,9 +71,13 @@ You also need the following libraries to be installed and working on your
 system:
 * libpcap
 
+I also use POSIX signals, POSIX threads (pthreads) and POSIX dynamic linking
+(dynamic libraries / shared objects), meaning that you need to use a system
+that supports these.
 I also use POSIX signals and POSIX threads (pthreads), so you need to have a 
 system that supports these.
-If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html).
+If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html),
+although I'm afraid that not all features are reliable.
 
 
 
@@ -117,102 +121,96 @@ IPv4 at this point.
 
 ### Creating a streamer ###
 
-All streamer source code must be put in the `streamers` directory in order for
-the build script to recognize it as a streamer implementation. All streamers
-must have an entry point declared with the following signature:
+While core program source code can all be placed in different subdirectories
+and can be scattered all across, streamers must be put in a special 
+subdirectory in the source directory in order for the build script to 
+recognize it as a streamer implementation. Streamers are given the same name
+as their relative root directory.
+Streamers must also contain a streamer *entry point* with the following signature:
 
 ```C
-int streamer_entry_point(int connection, const state_t *run_state, const char **arguments)
+int streamer(int connection, const int* run_condition)
 ```
 
 Now, lets explain the arguments: The first argument, ``connection``, is the
 connection socket descriptor, and it is ready to use when the entry point is
-invoked. The next argument, the ``run_state`` pointer, is used for indicating
-when your streamer should be aborted. It will be set to ``RUN`` when the entry
-point is invoked, and can be set to ``STOP`` during execution of the streamer,
-so beware! The third argument, ``arguments`` are the parameter values passed
-on to the streamer from command line/program invokation. I will explain later
-on how this works.
+invoked. The next argument, the ``run_condition`` pointer, is used for indicating
+when your streamer should be aborted. It will be set to ``true`` when the entry
+point is invoked, and can be set to ``false`` during execution of the streamer,
+so beware! 
 
-Your streamer can choose to return before ``run_state`` is set to ``STOP``,
+Your streamer can choose to return before ``run_condition`` is set to ``false``,
 and can return with whatever status code it likes; the tcpstreamer program
 will do nothing with it except output what the code was. When the entry point
 returns, it is assumed that the streamer has completed, and the program will
 terminate shortly thereafter.
 
-To define your function as your streamer entry point, you must use the 
-following preprocessor macro definition:
-```C
-STREAMER(streamer_entry_point, NULL, NULL)
-```
-I will describe how this macro works later, but to briefly said it must be 
-there so that the build script and the program can recognize your custom
-function as your streamer entry point. As I said, I rely on some 
-auto-generated code, and parsing the source code to find streamers is part
-of that operation.
-
 
 #### Example streamer ####
-Here is an example streamer. The first argument to the entry point is a
-socket descriptor, all ready to use. The next argument, as explained above,
-indicates whether the streamer should continue or stop running. It is fully
-acceptable for the streamer to stop by itself. This streamer would be 
+Here is an example streamer, lets pretend that the source file is located
+at ``src/streamers/example_streamer/source.c``. The first argument to the entry
+point is a socket descriptor, all ready to use. The next argument, as explained
+above, indicates whether the streamer should continue or stop running. It is 
+fully acceptable for the streamer to stop by itself. This streamer would be 
 invoked with the command ``./tcpstreamer -s example_streamer hostname``,
 where ``hostname`` is the name of the host running a receiver instance.
 
 ```C
-#include "streamer.h" // NB!
 #include <unistd.h>
 
 /* Stream the numbers 1, 2, 3, ... to a receiver */
-static int example_streamer(int conn, const state_t *run, const char **args)
+int streamer(int conn, const int* run)
 {
 	ssize_t total_sent = 0;
 	int counter = 0;
 
-	while (*run == RUN) {
+	while (*run) {
 		total_sent += write(conn, (void*) &counter, sizeof(int));
 		counter++;
 	}
 
 	return 0;
 }
-
-/* Expose streamer entry point */
-STREAMER(example_streamer, NULL, NULL) 
 ```
-
-Note that I declared the entry point function as static. This is recommended,
-as C doesn't have what is known as *namespaces*, so if another function 
-somewhere in the source code was named ``example_streamer``, declaring this 
-one as static will prevent a possible symbol "collision".
 
 
 ### Taking arguments from command line ###
-As mentioned previously, it is possible to take arguments given to the program
-at invokation. To set up this, you must declare an *initialization* function 
-for your streamer. This is done by providing a function as the second argument
-to the ``STREAMER`` macro.
+It is also possible for a streamer to use parameters provided by the user.
+To set this up, you need to declare a special streamer *bootstrapper* function
+in addition to the streamer entry point, declared as the following:
 
-This initialization function must take the streamer entry point as an argument
-(in case you want to use the same initialization function for multiple 
-streamers) and can *register* streamer arguments. This is used by passing
-getopt long option-style options (see the reference for ``getopt_long()``) to a
-special register function, with the following signature:
 ```C
-int register_argument(struct option parameter)
+void streamer_init(void)
 ```
-The register function will return the number of arguments previously
-registered.
 
-Please note that the order of registration is also the order that the arguments
-is passed on to the entry point. If an argument is not given on program
+This bootstrapper function can be used to *register* command line arguments to
+the streamer. This is done by calling the function ``register_argument``.
+There are two types of parameters that the streamer can accept: **flags** and
+**arguments**. Flags are on the form `--flag` and work simply as switches, 
+while arguments are on the form `--argument=value`.
+
+```C
+int register_argument(const char* param_name, int* ref, int value)
+```
+
+Now, the first argument to the function, ``param_name``, is the name of the
+parameter. This must be a `\0`-terminated string. The second argument, if
+not `NULL`, indicates a flag. If the flag is set, then `ref` will, upon
+streamer invokation, contain the value set in `value`. If `ref` is `NULL`,
+this indicates an argument. In this case, the argument is mandatory if `value`
+is non-zero.
+
+Argument values are passed on to the streamer entry point in a vector, much
+like `argv` is for a main function, however there is a difference: Only the
+value of the argument is passed on, and its index is the same as the order
+you registered arguments. If an argument is not given on program
 invokation, it will be set to ``NULL`` when invoking the entry point function.
+
+
 
 #### Example file streamer ####
 ```C
-#include "streamer.h"
-#include "bootstrap.h"
+#include "bootstrap.h" // NB! We need the register_argument() signature
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -221,7 +219,7 @@ invokation, it will be set to ``NULL`` when invoking the entry point function.
 #include <assert.h>
 
 /* Stream a file given to the program as an argument using --file=filename */
-static int file_streamer(int conn, const state_t *run, const char **args)
+static int file_streamer(int conn, const int *run, const char **args)
 {
 	int bufsz = 1460;
 	FILE *fp = NULL;
@@ -229,10 +227,7 @@ static int file_streamer(int conn, const state_t *run, const char **args)
 	ssize_t len;
 
 	/* Parse arguments */
-	if (args[0] == NULL) {
-		fprintf(stderr, "Must supply filename!\n");
-		return -1;
-	} else if ((fp = fopen(args[0], "r")) == NULL) {	
+	if ((fp = fopen(args[0], "r")) == NULL) {	
 		fprintf(stderr, "Invalid file: '%s'\n", args[0]);
 		return -1;
 	}
@@ -259,25 +254,16 @@ static int file_streamer(int conn, const state_t *run, const char **args)
 	}
 
 	free(buf);
-	if (fp != NULL)
-		fclose(fp);
+	fclose(fp);
 
 	return 0;
 }
 
 /* Register arguments for the file streamer */
-static void bootstrap(streamer_t entry_point)
+void streamer_init()
 {
-	struct option streamer_args[] = {
-		{"file", 1, 0, 0},
-		{"bufsz", 1, 0, 0},
-	};
-
-	assert(entry_point == &file_streamer);
-	register_argument(streamer_args[0]);
-	register_argument(streamer_args[1]);
+	register_argument("file", NULL, 1); // mandatory
+	register_argument("buffer-size", NULL, 0); // optional 
 }
 
-
-STREAMER(simple_streamer, bootstrap, NULL)
 ```
