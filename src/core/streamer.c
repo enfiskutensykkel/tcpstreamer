@@ -1,23 +1,11 @@
+#include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
 #include <assert.h>
-#include "streamer.h"
-#include "bootstrap.h"
-
-
-/* Handle the auto-generated code */
-//extern struct {
-//	char const *name;
-//	void (*callback)(
-//			streamer_t*,
-//			void (**)(streamer_t),
-//			void (**)(streamer_t)
-//			);
-//} __streamers[];
-
+#include "instance.h"
 
 
 /* Make passing arguments to thread easier */
@@ -27,7 +15,7 @@ struct thread_arg
 	pthread_mutex_t state_mutex;
 	pthread_cond_t stopped;
 	int connection;
-	state_t const *condition;
+	int const *condition;
 	char const **arguments;
 	int *status;
 };
@@ -39,40 +27,41 @@ static enum { RUNNING, STOPPED } streamer_state;
 
 
 
-/* Bootstrap all streamers and create streamer table */
-int streamer_tbl_create(tblent_t **tbl)
+
+/* Load dynamic library file / shared object file and symbols */
+int load_streamer(char const *name, streamer_t *entry, callback_t *init, callback_t *uninit)
 {
-	int i, n;
 
-	/* Count the number of streamers */
-//	for (n = 0; __streamers[n].callback != NULL; ++n);
+	char *filename = NULL;
+	void *handle;
 
-	/* Allocate memory for streamer table */
-	*tbl = malloc(sizeof(tblent_t) * (n+1));
-	if (*tbl == NULL)
+	/* Construct file name */
+	if ((filename = malloc(strlen(DEF_2_STR(STREAMER_DIR)) + strlen(name) + 2)) == NULL)
+		return -3;
+	strcpy(filename, DEF_2_STR(STREAMER_DIR));
+	strcat(filename, "/");
+	strcat(filename, name);
+
+	/* Load dynamic library file */
+	handle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL | RTLD_NODELETE);
+	if (handle == NULL) {
+		free(filename);
 		return -1;
-
-	/* Bootstrap all streamers */
-	for (i = 0; i < n; ++i) {
-//		(*tbl+i)->name = __streamers[i].name;
-//		__streamers[i].callback(&(*tbl+i)->streamer, &(*tbl+i)->init, &(*tbl+i)->uninit);
 	}
+	free(filename);
 
-	/* Set the last table entry to be zero */
-	memset(*tbl+n, 0, sizeof(tblent_t));
+	/* Load symbol for entry point */
+	*entry = (streamer_t) dlsym(handle, "streamer");
+	if (*entry == NULL)
+		return -2;
 
-	/* Return numbers of table entries */
-	return n;
-}
+	/* Load symbols for constructor/destructor */
+	*init = (callback_t) dlsym(handle, "streamer_create");
+	*uninit = (callback_t) dlsym(handle, "streamer_destroy");
 
-
-
-/* Destroy the streamer table */
-void streamer_tbl_destroy(tblent_t *tbl)
-{
-	if (tbl != NULL) {
-		free(tbl);
-	}
+	/* Close dynamic library file */
+	dlclose(handle);
+	return 0;
 }
 
 
@@ -102,9 +91,8 @@ static void* run_streamer(struct thread_arg *arg)
 
 
 
-#include <stdio.h>
 /* Start streamer thread */
-int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const **args)
+int streamer(streamer_t entry, unsigned dur, int conn, int *cond, char const **args)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
@@ -117,7 +105,7 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 	if ((th_arg = malloc(sizeof(struct thread_arg))) == NULL)
 		return -1;
 
-	th_arg->entry_point = entry->streamer;
+	th_arg->entry_point = entry;
 	th_arg->connection = conn;
 	th_arg->condition = cond;
 	th_arg->arguments = args;
@@ -136,17 +124,17 @@ int streamer(tblent_t *entry, unsigned dur, int conn, state_t *cond, char const 
 
 
 	/* Count down duration down */
-	while (*cond == RUN) {
+	while (*cond) {
 		
 		if (pthread_mutex_trylock(&th_arg->state_mutex) == 0) {
 			if (streamer_state != RUNNING)
-				*cond = STOP;
+				*cond = 0;
 			pthread_mutex_unlock(&th_arg->state_mutex);
 		}
 
 		if (dur != 0) {
 			if (utime == 0)
-				*cond = STOP;
+				*cond = 0;
 			else {
 				nanosleep(&timeout, NULL);
 				utime -= 100;

@@ -9,4 +9,20 @@
 
 #define ETH_FRAME_LEN 14
 
+#ifndef STREAMER_ENTRY
+#define STREAMER_ENTRY streamer
+#endif
+
+#ifndef STREAMER_INIT
+#define STREAMER_INIT streamer_create
+#endif
+
+#ifndef STREAMER_UNINIT
+#define STREAMER_UNINIT streamer_destroy
+#endif
+
+#ifndef STREAMER_DIR
+#define STREAMER_DIR streamers
+#endif
+
 #endif

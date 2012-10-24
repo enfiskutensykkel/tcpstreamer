@@ -26,7 +26,7 @@ LDLIBS := pcap pthread rt
 
 
 ### Generic make variables ###
-DEF := $(DEFINES:-D%=%) __STREAMER_DIR__="$(EXT_OUT)"
+DEF := $(DEFINES:-D%=%) 
 HDR := $(INCLUDE)
 INC := $(INC_DIR:%/=%)
 SRC := $(shell find $(SRC_DIR:%/=%)/ -type f -regex ".+\.c")
@@ -40,14 +40,14 @@ DATE := $(shell date +%Y%m%d%H%M)
 
 
 ### Helper functions ###
-expand_files = $(shell find $(1) -mindepth 2 -type f -regex ".+\.c")
+expand_files = $(shell find $(1) -mindepth 1 -type f -regex ".+\.c")
 target_name = $(subst /,_,$(patsubst ./%,%,$(1)))
 streamer_name = $(foreach d,$(EXT_DIR:%/=%),$(patsubst $(d)/%,%,$(1)))
 
 
 ### Make targets ###
 .PHONY: $(PROJECT) all clean realclean streamers tar todo
-all: $(PROJECT) streamers 
+all: $(PROJECT) streamers
 
 define compile_target_tmpl
 $(OBJ_OUT)/$(2): $(1) $(HDR)
