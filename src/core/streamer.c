@@ -50,13 +50,13 @@ int load_streamer(void **handle, char const *name, streamer_t *entry, callback_t
 	free(filename);
 
 	/* Load symbol for entry point */
-	*(void**) entry = dlsym(*handle, "streamer");
+	*(void**) entry = dlsym(*handle, DEF_2_STR(STREAMER_ENTRY));
 	if (*entry == NULL)
 		return -2;
 
 	/* Load symbols for initialization function */
 	dlerror();
-	*(void**) init = dlsym(*handle, "streamer_create");
+	*(void**) init = dlsym(*handle, DEF_2_STR(STREAMER_BOOTSTRAP));
 	if (dlerror() != NULL)
 		*init = NULL;
 

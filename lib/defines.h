@@ -13,12 +13,8 @@
 #define STREAMER_ENTRY streamer
 #endif
 
-#ifndef STREAMER_INIT
-#define STREAMER_INIT streamer_create
-#endif
-
-#ifndef STREAMER_UNINIT
-#define STREAMER_UNINIT streamer_destroy
+#ifndef STREAMER_BOOTSTRAP
+#define STREAMER_BOOTSTRAP streamer_init
 #endif
 
 #ifndef STREAMER_DIR
