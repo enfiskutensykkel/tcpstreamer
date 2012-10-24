@@ -219,7 +219,7 @@ invokation, it will be set to ``NULL`` when invoking the entry point function.
 #include <assert.h>
 
 /* Stream a file given to the program as an argument using --file=filename */
-static int file_streamer(int conn, const int *run, const char **args)
+int file_streamer(int conn, const int *run, const char **args)
 {
 	int bufsz = 1460;
 	FILE *fp = NULL;
