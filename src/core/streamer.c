@@ -29,11 +29,10 @@ static enum { RUNNING, STOPPED } streamer_state;
 
 
 /* Load dynamic library file / shared object file and symbols */
-int load_streamer(char const *name, streamer_t *entry, callback_t *init)
+int load_streamer(void **handle, char const *name, streamer_t *entry, callback_t *init)
 {
-
 	char *filename = NULL;
-	void *handle;
+	*handle = NULL;
 
 	/* Construct file name */
 	if ((filename = malloc(strlen(DEF_2_STR(STREAMER_DIR)) + strlen(name) + 2)) == NULL)
@@ -43,27 +42,33 @@ int load_streamer(char const *name, streamer_t *entry, callback_t *init)
 	strcat(filename, name);
 
 	/* Load dynamic library file */
-	handle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL | RTLD_NODELETE);
-	if (handle == NULL) {
+	*handle = dlopen(filename, RTLD_NOW | RTLD_LOCAL);
+	if (*handle == NULL) {
 		free(filename);
 		return -1;
 	}
 	free(filename);
 
 	/* Load symbol for entry point */
-	*entry = (streamer_t) dlsym(handle, "streamer");
+	*(void**) entry = dlsym(*handle, "streamer");
 	if (*entry == NULL)
 		return -2;
 
 	/* Load symbols for initialization function */
 	dlerror();
-	*init = (callback_t) dlsym(handle, "streamer_create");
+	*(void**) init = dlsym(*handle, "streamer_create");
 	if (dlerror() != NULL)
 		*init = NULL;
 
-	/* Close dynamic library file */
-	dlclose(handle);
 	return 0;
+}
+
+
+
+void unload_streamer(void *handle)
+{
+	if (handle != NULL)
+		dlclose(handle);
 }
 
 

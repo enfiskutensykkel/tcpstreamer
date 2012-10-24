@@ -52,7 +52,15 @@ typedef void (*callback_t)(streamer_t entry_point);
  * Returns 0 on success, -1 if supplied file is invalid or -2 if symbol isn't
  * found.
  */
-int load_streamer(char const *name, streamer_t *entry_point, callback_t *init);
+int load_streamer(void **handle, char const *name, streamer_t *entry_point, callback_t *init);
+
+
+
+/* Unload streamer functions
+ *
+ * After loading and running the shared object file, unload the symbols.
+ */
+void unload_streamer(void *handle);
 
 
 
