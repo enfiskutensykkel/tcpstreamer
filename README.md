@@ -71,11 +71,9 @@ You also need the following libraries to be installed and working on your
 system:
 * libpcap
 
-I also use POSIX signals, POSIX threads (pthreads) and POSIX dynamic linking
-(dynamic libraries / shared objects), meaning that you need to use a system
-that supports these.
-I also use POSIX signals and POSIX threads (pthreads), so you need to have a 
-system that supports these.
+Since the program relies on `select`, POSIX signals, POSIX threads (pthreads)
+and POSIX dynamic linking (dynamic libraries / shared objects), I suspect that
+it isn't very portable.
 If you're using Windows, you might want to look into [Cygwin](http://www.cygwin.com/install.html),
 although I'm afraid that not all features are reliable.
 
@@ -175,6 +173,7 @@ int streamer(int conn, const int* run)
 
 
 ### Taking arguments from command line ###
+
 It is also possible for a streamer to use parameters provided by the user.
 To set this up, you need to declare a special streamer *bootstrapper* function
 in addition to the streamer entry point, declared as the following:
