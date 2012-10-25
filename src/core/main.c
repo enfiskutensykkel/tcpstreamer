@@ -282,8 +282,12 @@ cleanup_and_die:
 /* Print program usage */
 static void give_usage(char *name, char *streamer)
 {
+	int i;
+	FILE *stream = stdout;
+
 	if (streamer == NULL) {
-		fprintf(stdout,
+		/* Program options */
+		fprintf(stream,
 				"Usage: %s [" U "options" R "] [" U "arguments" R "...] " U "host" R "\n"
 				"   or: %s [" U "options" R "]\n"
 				"\nAvailable options:\n"
@@ -296,7 +300,21 @@ static void give_usage(char *name, char *streamer)
 				,
 				name, name);
 	} else {
-		fprintf(stdout, "Usage: %s " B "-s %s" R " " U "arguments" R "... " U "host" R "\n",
+		/* Streamer specific options */
+		fprintf(stream, "Usage: %s " B "-s %s" R " [" U "arguments" R "...] " U "host" R "\n",
 				name, streamer);
+
+		if (streamer_params != NULL) {
+			fprintf(stream, "\nStreamer arguments:\n");
+			for (i = 0; streamer_params[i].name != NULL; ++i) {
+				if (streamer_params[i].flag == NULL)
+					fprintf(stream, (streamer_params[i].val != 0 ? 
+								"  " B "--%s=" U "value" R "\n"
+								: 
+								"  --%s=" U "value" R "\n" ), streamer_params[i].name);
+				else
+					fprintf(stream, "  --%s\n", streamer_params[i].name);
+			}
+		}
 	}
 }
