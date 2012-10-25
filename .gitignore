@@ -4,4 +4,3 @@ build/*.o
 build/*.so
 tcpstreamer
 tcpstreamer-*.tar.gz
-./streamers/
