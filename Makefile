@@ -68,7 +68,7 @@ $(foreach d,$(DIR),$(foreach file,$(call expand_files,$(d)),$(eval $(call compil
 $(foreach d,$(DIR),$(eval $(call link_target_tmpl,$(call streamer_name,$(d)),$(call target_name,$(d))_OBJ)))
 
 $(PROJECT): $(OBJ)
-	$(LD) -rdynamic -ldl $(addprefix -l,$(LDLIBS:-l%=%)) -o $@ $^
+	$(LD) -o $@ $^ -rdynamic -ldl $(addprefix -l,$(LDLIBS:-l%=%)) 
 
 streamers: $(EXT)
 
